@@ -1,0 +1,18 @@
+// '2021-20-26 / @AgulloBernat
+// Use this function with a query containing the list of files and the result of invoke custom function to transform each of the files in a table
+// it will keep only the files with errors along with the error meassage for each of them
+let
+  Query1 = (tablaFicheros as table) => 
+let
+  Source = tablaFicheros,
+  #"Kept errors" = Table.SelectRowsWithErrors(Source, {"Transform file"}),
+  #"Added custom" = Table.AddColumn(#"Kept errors", "Error", each try [Transform file]),
+  #"Expanded Error" = Table.ExpandRecordColumn(#"Added custom", "Error", {"Error"}, {"Error.1"}),
+  #"Expanded Error.1" = Table.ExpandRecordColumn(#"Expanded Error", "Error.1", {"Reason", "Message", "Detail"}, {"Reason", "Message", "Detail"}),
+  #"Remove columns" = Table.RemoveColumns(#"Expanded Error.1", Table.ColumnsOfType(#"Expanded Error.1", {type table, type record, type list, type nullable binary, type binary, type function})),
+  #"Remove columns.1" = Table.RemoveColumns(#"Remove columns",{"Transform file"}),
+  #"Changed column type" = Table.TransformColumnTypes(#"Remove columns.1", {{"Reason", type text}, {"Message", type text}, {"Detail", type text}})
+in
+  #"Changed column type"
+in
+  Query1
