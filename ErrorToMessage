@@ -1,0 +1,8 @@
+(ErrorTable as table, ErrorColumn  as text) =>
+let
+    #"Added Custom" = Table.AddColumn(ErrorTable, "Custom", each try Record.Field(_, ErrorColumn)),
+    #"Expanded Custom" = Table.ExpandRecordColumn(#"Added Custom", "Custom", {"Error"},{"Error"}),
+    #"Expanded Error" = Table.ExpandRecordColumn(#"Expanded Custom", "Error", {"Message"}, {"Message"}),
+    #"Removed Columns" = Table.RemoveColumns(#"Expanded Error",{ErrorColumn})
+in
+   #"Removed Columns"
