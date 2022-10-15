@@ -2,7 +2,7 @@
 let
     #"Added Custom" = Table.AddColumn(ErrorTable, "Custom", each try Record.Field(_, ErrorColumn)),
     #"Expanded Custom" = Table.ExpandRecordColumn(#"Added Custom", "Custom", {"Error"},{"Error"}),
-    #"Expanded Error" = Table.ExpandRecordColumn(#"Expanded Custom", "Error", {"Message"}, {"Message"}),
+    #"Expanded Error" = Table.ExpandRecordColumn(#"Expanded Custom", "Error", {"Message","Detail"}, {"Message","Detail"}),
     #"Removed Columns" = Table.RemoveColumns(#"Expanded Error",{ErrorColumn})
 in
    #"Removed Columns"
