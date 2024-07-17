@@ -1,0 +1,29 @@
+let
+    Source = (sourceText as text) =>
+    let
+    Source =
+    Web.Contents(
+        "https://api-eur.cognitive.microsofttranslator.com", 
+        [
+            RelativePath = "translate",
+            Headers = [
+                #"Ocp-Apim-Subscription-Key" =ApiKey,
+                #"Ocp-Apim-Subscription-Region" = Region,
+                #"Content-Type" = "application/json"
+            ],
+            Content = Json.FromValue({[Text = sourceText]}),
+            Query = [
+                #"api-version" = "3.0",
+                from = "ja",
+                to = "en"
+            ]
+        ]
+    ),
+    JsonResponse = Json.Document(Source,65001),
+    ImportJSON = JsonResponse{0},
+    Translations = ImportJSON[translations],
+    OutputText = Translations{0}[text]
+in
+    OutputText
+in
+    Source
