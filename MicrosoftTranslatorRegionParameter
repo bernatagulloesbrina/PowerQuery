@@ -1,0 +1,4 @@
+let
+    Source = "westeurope" meta [IsParameterQuery = true, IsParameterQueryRequired = true, Type = type any, List = {"westeurope", "eastasia"}, DefaultValue = "westeurope"]
+in
+    Source
