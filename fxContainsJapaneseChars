@@ -1,0 +1,23 @@
+let
+    // Function to check if a character is Japanese
+    IsJapaneseCharacter = (char as text) as logical =>
+    let
+        code = Character.ToNumber(char),
+        isJapanese = 
+            (code >= 0x3000 and code <= 0x303F) or  // Japanese punctuation
+            (code >= 0x3040 and code <= 0x309F) or  // Hiragana
+            (code >= 0x30A0 and code <= 0x30FF) or  // Katakana
+            (code >= 0xFF00 and code <= 0xFFEF) or  // Full-width roman characters and half-width katakana
+            (code >= 0x4E00 and code <= 0x9FAF)     // Kanji
+    in
+        isJapanese,
+
+    // Function to check if a string contains Japanese characters
+    ContainsJapanese = (input as text) as logical =>
+    let
+        chars = Text.ToList(input),
+        result = List.AnyTrue(List.Transform(chars, each IsJapaneseCharacter(_)))
+    in
+        result
+in
+    ContainsJapanese
