@@ -1,0 +1,5 @@
+(t as table) =>
+let
+    Source = Table.TransformColumnNames(t,each Text.Proper(Text.Replace(_,"_"," ")))
+in
+    Source
