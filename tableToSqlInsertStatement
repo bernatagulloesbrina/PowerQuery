@@ -1,0 +1,23 @@
+let
+    GenerateSQL = (tableName as text, inputTable as table) =>
+    let
+        // Get the column names from the table
+        columnNames = Table.ColumnNames(inputTable),
+        
+        // Create the column list for the SQL statement
+        columnList = Text.Combine(List.Transform(columnNames, each "[" & _ & "]"), ", "),
+
+        // Create the list of value rows for the SQL statement
+        valueRows = List.Transform(Table.ToRows(inputTable), each 
+            "(" & Text.Combine(List.Transform(_, each "'" & Text.Replace(Text.From(_), "'", "''") & "'"), ", ") & ")"
+        ),
+
+        // Combine the value rows into a single string
+        valuesList = Text.Combine(valueRows, ", " & "#(lf)"),
+
+        // Generate the final SQL statement
+        sqlStatement = "INSERT INTO [" & tableName & "] (" & columnList & ") VALUES " & "#(lf)" & valuesList & ";"
+    in
+        sqlStatement
+in
+    GenerateSQL
