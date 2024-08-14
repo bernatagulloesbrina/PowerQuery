@@ -1,0 +1,5 @@
+(t as table) =>
+let
+  Source = Table.TransformColumnNames(t,each Text.BetweenDelimiters(_,"[","]"))
+in
+  Source
