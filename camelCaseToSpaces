@@ -1,15 +1,32 @@
 (t as table) =>
 let
-    Source0 = Table.TransformColumnNames(t,each Text.Upper(Text.Start(_,1)) & Text.End(_,Text.Length(_)-1) ),
-    Source = 
-    Table.TransformColumnNames(
+    // Function to check if a header is already in snake_case
+    IsSnakeCase = (header as text) as logical =>
+        Text.Contains(header, "_") and 
+        Text.Lower(header) = header and 
+        not Text.ContainsAny(header, {"A".."Z"}),
+
+    // Step 1: Add underscore before capital letters and convert to lowercase
+    Source0 = Table.TransformColumnNames(
+        t, 
+        each if IsSnakeCase(_) then _ else Text.Lower(Text.Combine(Splitter.SplitTextByPositions(Text.PositionOfAny(_, {"A".."Z"}, 2))(_), "_"))
+    ),
+    
+    // Step 2: Add underscore before numbers
+    Source1 = Table.TransformColumnNames(
         Source0, 
-        each Text.Combine(
-            Splitter.SplitTextByPositions(
-                Text.PositionOfAny(_, {"A".."Z"},2)
-                ) 
-                (_),
-                 " ")
+        each if IsSnakeCase(_) then _ else Text.Combine(
+            List.Transform(
+                Text.ToList(_), 
+                (c) => if Value.Is(Value.FromText(c), type number) then "_" & c else c
+            )
+        )
+    ),
+    
+    // Step 3: Replace any spaces with underscores (as a safety measure)
+    Source = Table.TransformColumnNames(
+        Source1, 
+        each if IsSnakeCase(_) then _ else Text.Replace(_, " ", "_")
     )
 in
     Source
