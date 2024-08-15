@@ -1,0 +1,18 @@
+let
+    ConvertToCamelCase = (header as text) as text =>
+    let
+        // Split the header into words using spaces
+        words = Text.Split(header, " "),
+        // Convert the first word to lowercase
+        firstWord = Text.Lower(words{0}),
+        // Convert the remaining words to Proper Case (capitalize first letter)
+        restWords = List.Transform(List.Skip(words, 1), each Text.Proper(Text.Lower(_))),
+        // Combine the first word with the rest of the words
+        camelCase = Text.Combine(List.Combine({{firstWord}, restWords}), "")
+    in
+        camelCase,
+
+    ConvertTableHeadersToCamelCase = (table as table) as table =>
+    Table.TransformColumnNames(table, each ConvertToCamelCase(_))
+in
+    ConvertTableHeadersToCamelCase
