@@ -4,29 +4,34 @@ let
     IsSnakeCase = (header as text) as logical =>
         Text.Contains(header, "_") and 
         Text.Lower(header) = header and 
-        not Text.ContainsAny(header, {"A".."Z"}),
+        not List.AnyTrue(List.Transform({"A".."Z"}, each Text.Contains(header, _))),
+    
+    // Function to check if a header is a single word without mixed letters and numbers
+    IsSingleWord = (header as text) as logical =>
+        not Text.Contains(header, " ") and
+        not List.AnyTrue(List.Transform({"A".."Z"}, each Text.Contains(header, _))) and
+        not List.AnyTrue(List.Transform({"0".."9"}, each Text.Contains(header, _))),
 
-    // Step 1: Add underscore before capital letters and convert to lowercase
-    Source0 = Table.TransformColumnNames(
-        t, 
-        each if IsSnakeCase(_) then _ else Text.Lower(Text.Combine(Splitter.SplitTextByPositions(Text.PositionOfAny(_, {"A".."Z"}, 2))(_), "_"))
-    ),
-    
-    // Step 2: Add underscore before numbers
-    Source1 = Table.TransformColumnNames(
-        Source0, 
-        each if IsSnakeCase(_) then _ else Text.Combine(
-            List.Transform(
-                Text.ToList(_), 
-                (c) => if Value.Is(Value.FromText(c), type number) then "_" & c else c
-            )
-        )
-    ),
-    
-    // Step 3: Replace any spaces with underscores (as a safety measure)
+    // Function to transform camelCase or mixed words to snake_case
+    ToSnakeCase = (header as text) as text =>
+        let
+            // Find the positions of capital letters using Occurrence.All
+            capitalPositions = Text.PositionOfAny(header, {"A".."Z"}, Occurrence.All),
+            // Find the positions of numbers using Occurrence.All
+            numberPositions = Text.PositionOfAny(header, {"0".."9"}, Occurrence.All),
+            // Combine capital and number positions, including the start position
+            positions = List.Sort(List.Distinct(List.Combine({{0}, capitalPositions, numberPositions}))),
+            // Split the text at the positions
+            splitWords = List.Transform(Splitter.SplitTextByPositions(positions)(header), each Text.Lower(_)),
+            // Combine the words with underscores
+            finalResult = Text.Combine(splitWords, "_")
+        in
+            finalResult,
+
+    // Apply the transformation only to headers that need it
     Source = Table.TransformColumnNames(
-        Source1, 
-        each if IsSnakeCase(_) then _ else Text.Replace(_, " ", "_")
+        t, 
+        each if IsSnakeCase(_) or IsSingleWord(_) then _ else ToSnakeCase(_)
     )
 in
     Source
