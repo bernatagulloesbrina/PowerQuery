@@ -1,0 +1,5 @@
+let
+  Source = Table.FromColumns({{DateTime.LocalNow() + #duration(0,9,0,0)}},{"insert_time"}),
+  #"Changed column type" = Table.TransformColumnTypes(Source, {{"insert_time", type datetime}})
+in
+  #"Changed column type"
