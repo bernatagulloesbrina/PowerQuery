@@ -1,14 +1,38 @@
 let
     ConvertToCamelCase = (header as text) as text =>
     let
-        // Split the header into words using spaces
-        words = Text.Split(header, " "),
-        // Convert the first word to lowercase
-        firstWord = Text.Lower(words{0}),
-        // Convert the remaining words to Proper Case (capitalize first letter)
-        restWords = List.Transform(List.Skip(words, 1), each Text.Proper(Text.Lower(_))),
-        // Combine the first word with the rest of the words
-        camelCase = Text.Combine(List.Combine({{firstWord}, restWords}), "")
+        // Check if the input has any spaces
+        hasSpaces = Text.Contains(header, " "),
+
+        // Function to check if the header is already in camel case
+        IsCamelCase = (input as text) as logical =>
+        let
+            // Check if the input is already in camel case format
+            isCamelCase = not hasSpaces and
+                          (Text.Start(input, 1) = Text.Lower(Text.Start(input, 1)) or 
+                          (Text.Upper(Text.Start(input, 1)) = Text.Start(input, 1) and 
+                           List.AnyTrue(List.Transform(Text.ToList(Text.Range(input, 1)), each _ = Text.Upper(_) and _ <> Text.Lower(_)))))
+        in
+            isCamelCase,
+
+        // Convert the header to camel case if it's not already
+        camelCase = if IsCamelCase(header) then
+            // Convert first letter to lowercase
+            Text.Lower(Text.Start(header, 1)) & Text.Range(header, 1)
+        else
+            // Split the header into words using spaces and convert to camelCase
+            let
+                words = Text.Split(header, " "),
+                // Convert the first word to lowercase
+                firstWord = Text.Lower(words{0}),
+                // Convert the remaining words to Proper Case (capitalize first letter)
+                restWords = List.Transform(List.Skip(words, 1), each Text.Proper(Text.Lower(_))),
+                // Combine the first word with the rest of the words
+                camelCaseOutput = Text.Combine(List.Combine({{firstWord}, restWords}), ""),
+                // Ensure the first letter is lowercase
+                camelCaseFinal = Text.Lower(Text.Start(camelCaseOutput, 1)) & Text.Range(camelCaseOutput, 1)
+            in
+                camelCaseFinal
     in
         camelCase,
 
