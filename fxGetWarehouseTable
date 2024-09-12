@@ -1,0 +1,10 @@
+(WorkspaceName as text, WarehouseName as text, TableName as text) =>
+let
+  Source = Fabric.Warehouse(null),
+  #"Filtered rows" = Table.SelectRows(Source, each [workspaceName] = WorkspaceName),
+  Custom = #"Filtered rows"{0}[Data],
+  #"Filtered rows 1" = Table.SelectRows(Custom, each [displayName] = WarehouseName),
+  #"Custom 1" = #"Filtered rows 1"{0}[Data],
+  #"Navigation 1" = #"Custom 1"{[Schema = "dbo", Item = TableName]}[Data]
+in
+  #"Navigation 1"
