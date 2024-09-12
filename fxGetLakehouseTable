@@ -1,0 +1,10 @@
+(WorkspaceName as text,LakehouseName  as text, TableName as text) =>
+let
+  Source = Lakehouse.Contents(null),
+  #"Filtered rows" = Table.SelectRows(Source, each [workspaceName] = WorkspaceName),
+  Custom = #"Filtered rows"{0}[Data],
+  #"Filtered rows 1" = Table.SelectRows(Custom, each ([lakehouseName] = LakehouseName)),
+  #"Custom 1" = #"Filtered rows 1"{0}[Data],
+  #"Navigation 1" = #"Custom 1"{[Id = TableName, ItemKind = "Table"]}[Data]
+in
+  #"Navigation 1"
