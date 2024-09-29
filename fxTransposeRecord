@@ -1,0 +1,14 @@
+(myTable as table, fieldToExpand as text) =>
+let
+  NewFields = {fieldToExpand & "Type",fieldToExpand & ""},
+  Source = Table.AddColumn(myTable, fieldToExpand & "Table", 
+    each
+      let 
+        r = Record.Field(_, fieldToExpand),
+        t = Table.FromColumns({Record.FieldNames(r),Record.ToList(r)},NewFields)
+      in
+        t ),
+  CleanUp = Table.RemoveColumns(Source,{fieldToExpand}),
+  Expand = Table.ExpandTableColumn(CleanUp, fieldToExpand & "Table", NewFields, NewFields)
+in
+  Expand
