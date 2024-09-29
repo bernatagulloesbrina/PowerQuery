@@ -1,0 +1,12 @@
+(myTable as table, field1 as text, field2 as text, optional outputField as text) as table =>
+let
+  tempFieldName = "@@@123###",
+  Source = Table.AddColumn(myTable, tempFieldName, each Record.Field(_,field1) ?? Record.Field(_,field2)),
+  CleanUp = Table.RemoveColumns(Source,{field1,field2}),
+
+  Rename = 
+    if List.Contains(Table.ColumnNames(CleanUp),outputField) 
+      then error outputField & " is already on the Table!" 
+      else Table.RenameColumns(CleanUp,{tempFieldName,outputField})
+in
+  Rename
