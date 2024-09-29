@@ -24,9 +24,10 @@ let
             // Split the text at the positions
             splitWords = List.Transform(Splitter.SplitTextByPositions(positions)(header), each Text.Lower(_)),
             // Combine the words with underscores
-            finalResult = Text.Combine(splitWords, "_")
+            finalResult = Text.Combine(splitWords, "_"),
+            finalResult2 = Text.Replace(finalResult," ","")
         in
-            finalResult,
+            finalResult2,
 
     // Apply the transformation only to headers that need it
     Source = Table.TransformColumnNames(
