@@ -1,0 +1,39 @@
+(table1 as table, table2 as table, table1name as text, table2name as text, idField as text) =>
+let
+    //find common fields by name
+    commonFields = List.Intersect({Table.ColumnNames(table1),Table.ColumnNames(table2)}),
+
+    //extract common fields from table 1
+    table1commonFields = Table.SelectColumns(table1,commonFields),
+
+    //remove duplicates by id column
+    table1distinct = Table.Distinct(table1commonFields,{idField}),
+
+    //add a column to identify source
+    table1append = Table.AddColumn(table1distinct,"_QuerySource",each table1name, type text),
+
+    //repeat for table 2
+    table2commonFields = Table.SelectColumns(table2,commonFields),
+    table2distinct = Table.Distinct(table2commonFields,{idField}),
+    table2append = Table.AddColumn(table2distinct,"_QuerySource",each table2name, type text),
+
+    //find ids form table1, table2 and identify common ids (no point in comparing the rest)
+    table1ids = List.Distinct(Table.Column(table1append,idField)),
+    table2ids = List.Distinct(Table.Column(table2append,idField)),
+    commonids = List.Buffer(List.Skip(List.Intersect({table1ids,table2ids}),each _ = null)), 
+
+    //append both sets of data and keep only rows of the ids showing up in both
+    appended = Table.Combine({table1append,table2append}),
+    comonRows = Table.SelectRows(appended, each List.Contains(commonids,Record.Field(_,idField))),
+
+    //unpivot all except the id column and the source column
+    #"Unpivoted Other Columns" = Table.UnpivotOtherColumns(comonRows, {idField, "_QuerySource"}, "Attribute", "Value"),
+    
+    //pivot the source column so we get values side by side for the same id and attribute
+    #"Pivoted Column" = Table.Pivot(#"Unpivoted Other Columns", List.Distinct(#"Unpivoted Other Columns"[_QuerySource]), "_QuerySource", "Value"),
+    
+    //add a check column to easily filter values that are different from the rest
+    #"Added Custom" = Table.AddColumn(#"Pivoted Column", "dataCheck", each if Record.Field(_,table1name) = Record.Field(_,table2name) then "O" else "X", type text)
+
+in
+    #"Added Custom"
