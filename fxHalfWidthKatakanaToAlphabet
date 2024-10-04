@@ -1,0 +1,23 @@
+// 2024-10-04 / B.Agullo / Adapted from other sources, combined into a single function
+// based on a half-width katakana field adds a column with the same content in alphabet
+(sourceTable as table,kanaFieldName as text,englishFieldName as text) as table =>
+let
+    Source = sourceTable,
+    kanaConversionList = Json.Document(
+        Binary.Decompress(Binary.FromText("dZXNUsJAEITfhbMHJJhNjoLACkVigUiJetD8vIHv7/agO53ZeKFqepJvMtlO8/Y2ef/uezed3EwmHzfXqvjCb9njN+9C5+m1Hm+20jyNNxtp3ttmF7GLFNtF7CLFdhG7YOytwW7r8R6o29N4D9CtMl3zP3PQM8xBzzKLv1427cDcnMea4UZnm848zYZe3KDZSvM03myk+YfNpv1c5K8gv9RW/YS6smoB9dGqeN6X4S6/K+5oi6KJ49a1VTFuvbIqxq0frYpxa+WWRXwvB3ovv3Ir8snKjcjWmwLxiSsF4hM/CsQzJI+QiiF5hFQMySOkSuwskKW3ThbI0lsTC2TprX8FcvTWugI5eutagRy9tZ1AdonhBLJLrCaQHa3jsnjq59qqOPXzyqo49bOeupvFa1/JId01aZAx9JZaVa2brmqaVVDJY5+q3ttpElrJNFGTaaKmEQY1mSYqTZtH9YGmZarStFlUL2m2IYFo2lQJdEK9EuiEdOMLnVA7Ns01Y9OcbnyhabrxhqaVqtK0QtU006DStFxVjjhEk96b56GmrLsNJYUc/gUVWcLLFGAlTHyghIElD/q4ZYmaowY18RBcB+LhYTix7lDT/Xh4+pTKLNR7un6GmuZjmz3dj3X2dPww9Z5NjfxiO6NmIyNo2cLos3lREw/7V8TD/hXxsH/FAYiaeNi/4s8g1M/8AaBm66M+suslBtnwuIKtjohjk6Nme6NmY0sksqchsJsRd+xj1Oxg1Oxd1Oxa1MS7I3+Gck7+RD6GkmCzgV0dtg+ojx8=", BinaryEncoding.Base64), Compression.Deflate)
+    ),
+    replaceKana = Table.AddColumn(Source, englishFieldName, each List.Accumulate(
+            kanaConversionList,
+            Record.Field(_,kanaFieldName),
+            (x, y)=> Text.Replace(x, y{0}, y{1})
+        )),
+    fixDoubbleLetters = Table.TransformColumns(
+        replaceKana, {englishFieldName, each [
+            position = Text.PositionOf(_, "ッ"),
+            change = Text.ReplaceRange(_, position, 1, Text.Range(_, position+1, 1)),
+            output = if position=-1 then _ else change
+        ][output]
+    }),
+    fixN = Table.ReplaceValue(fixDoubbleLetters,"ﾝ","N",Replacer.ReplaceText,{englishFieldName})
+in
+    fixN
