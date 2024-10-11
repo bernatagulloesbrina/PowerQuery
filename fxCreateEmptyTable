@@ -1,0 +1,9 @@
+(field_list as any, optional field_type_list as any) as table =>
+let
+  emptyColumns = List.Transform(field_list, each {}),
+  types = field_type_list ?? List.Transform(field_list, each type text),
+  field_type = List.Zip({field_list,types}),
+  Source = Table.FromColumns(emptyColumns,field_list),
+  #"Changed column type" = Table.TransformColumnTypes(Source, field_type)
+in
+  #"Changed column type"
