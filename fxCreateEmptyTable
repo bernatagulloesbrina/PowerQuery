@@ -1,9 +1,25 @@
+// 2024-10-11 / B.Agullo
+// Define a function that takes two parameters: 
+// 'field_list' (a list of column names) and an optional 'field_type_list' (a list of types for the columns)
 (field_list as any, optional field_type_list as any) as table =>
+
 let
-  emptyColumns = List.Transform(field_list, each {}),
-  types = field_type_list ?? List.Transform(field_list, each type text),
-  field_type = List.Zip({field_list,types}),
-  Source = Table.FromColumns(emptyColumns,field_list),
-  #"Changed column type" = Table.TransformColumnTypes(Source, field_type)
+    // Create a list of empty columns by transforming each item in 'field_list' to an empty list
+    emptyColumns = List.Transform(field_list, each {}),
+    
+    // Check if 'field_type_list' is provided; if not, default to a list of 'text' types for all columns
+    types = field_type_list ?? List.Transform(field_list, each type text),
+    
+    // Zip the column names (from 'field_list') and their corresponding types (from 'types') together into pairs
+    field_type = List.Zip({field_list, types}),
+    
+    // Create an empty table using the list of empty columns and the column names
+    Source = Table.FromColumns(emptyColumns, field_list),
+    
+    // Apply the corresponding types to each column in the table
+    #"Changed column type" = Table.TransformColumnTypes(Source, field_type)
+
 in
-  #"Changed column type"
+    // Return the table with the correct column types
+    #"Changed column type"
+
