@@ -1,13 +1,35 @@
+// 2024-10-11 / B.Agullo /
+// Define a function that takes the WorkspaceName, WarehouseName, TableName, and an optional EmptyTableIfNotFound
 (WorkspaceName as text, WarehouseName as text, TableName as text, optional EmptyTableIfNotFound as table) as table =>
+
 let
-  Source = Fabric.Warehouse(null),
-  #"Filtered rows" = Table.SelectRows(Source, each [workspaceName] = WorkspaceName),
-  Custom = #"Filtered rows"{0}[Data],
-  #"Filtered rows 1" = Table.SelectRows(Custom, each [displayName] = WarehouseName),
-  #"Custom 1" = #"Filtered rows 1"{0}[Data],
-  #"Filtered rows 2" = Table.SelectRows(#"Custom 1", each ([Schema] = "dbo")),
-  #"Filtered rows 3" = Table.SelectRows(#"Filtered rows 2", each [Name] = TableName),
-  #"Navigation 1" = if Table.RowCount(#"Filtered rows 3") = 0 then EmptyTableIfNotFound 
-else #"Filtered rows 3"{0}[Data]
+    // Connect to Fabric Warehouse with a null parameter (no specific warehouse selected)
+    Source = Fabric.Warehouse(null),
+
+    // Filter rows from the source data to find the workspace matching the provided WorkspaceName
+    #"Filtered rows" = Table.SelectRows(Source, each [workspaceName] = WorkspaceName),
+
+    // Get the data field from the first record in the filtered workspace (assumes the workspace exists)
+    Custom = #"Filtered rows"{0}[Data],
+
+    // Further filter rows to find the warehouse matching the provided WarehouseName
+    #"Filtered rows 1" = Table.SelectRows(Custom, each [displayName] = WarehouseName),
+
+    // Get the data field from the first record in the filtered warehouse (assumes the warehouse exists)
+    #"Custom 1" = #"Filtered rows 1"{0}[Data],
+
+    // Filter rows where the schema is "dbo"
+    #"Filtered rows 2" = Table.SelectRows(#"Custom 1", each ([Schema] = "dbo")),
+
+    // Further filter rows to find the table matching the provided TableName
+    #"Filtered rows 3" = Table.SelectRows(#"Filtered rows 2", each [Name] = TableName),
+
+    // If no matching table is found (row count is 0), return the optional EmptyTableIfNotFound;
+    // otherwise, return the Data field from the first matching table
+    #"Navigation 1" = if Table.RowCount(#"Filtered rows 3") = 0 
+                     then EmptyTableIfNotFound 
+                     else #"Filtered rows 3"{0}[Data]
+
 in
-  #"Navigation 1"
+    // Return the final table (either the found table or the EmptyTableIfNotFound)
+    #"Navigation 1"
