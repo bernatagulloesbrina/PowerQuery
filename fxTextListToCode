@@ -1,0 +1,5 @@
+(myList as list) as text =>
+let
+  Source = "{""" & Text.Combine(myList,""",""") & """}"
+in
+  Source
