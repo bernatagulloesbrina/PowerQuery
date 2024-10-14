@@ -1,0 +1,33 @@
+(myTable as table) as text =>
+let
+  fxGetTableFieldsAsCode = 
+    (myTable as table) as text =>
+    let
+      Source = Table.ColumnNames(myTable),
+      fxTextListToCode = 
+        (myList as list) as text =>
+        let
+          Source = "{""" & Text.Combine(myList,""",""") & """}"
+        in
+          Source,
+      Custom = fxTextListToCode(Source)
+  in
+    Custom,
+  
+  fxGetTableTypesAsCode =
+    (myTable as table) as text => 
+    let
+      Source = Table.Schema(myTable),
+      #"Added custom" = Table.AddColumn(Source, "TypeText", each if List.Contains({"Int64.Type"},[TypeName]) then [TypeName] else "type " & [Kind]),
+      #"Custom 2" = "{" & Text.Combine(#"Added custom"[TypeText],",") & "}"
+    in
+      #"Custom 2",
+  
+  fieldListText = fxGetTableFieldsAsCode(myTable),
+  fieldTypesListText = fxGetTableTypesAsCode(myTable),
+
+
+  Source = "fxCreateEmptyTable(" & fieldListText & "," & fieldTypesListText & ")"
+  
+in
+  Source
