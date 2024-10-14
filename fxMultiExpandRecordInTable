@@ -1,0 +1,13 @@
+(myQuery as table, recordFieldName as text,expandList as list, optional outputFieldName as text) =>
+
+let
+  fxMultiExpandRecord = 
+    (myRecord as record, expandList as list) =>
+    let
+      Source = List.Accumulate(expandList,myRecord,(finalValue,current) => if finalValue = null then null else Record.FieldOrDefault(finalValue,current,null))
+    in
+      Source,
+  getValue = Table.AddColumn(myQuery, outputFieldName ?? "output", each fxMultiExpandRecord(Record.Field(_,recordFieldName),expandList)),
+  cleanUp = Table.RemoveColumns(getValue,recordFieldName)
+in
+  cleanUp
