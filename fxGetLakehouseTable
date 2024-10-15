@@ -1,10 +1,14 @@
-(WorkspaceName as text,LakehouseName  as text, TableName as text) =>
+(WorkspaceName as text,LakehouseName  as text, TableName as text,  optional EmptyTableIfNotFound as table) =>
 let
   Source = Lakehouse.Contents(null),
   #"Filtered rows" = Table.SelectRows(Source, each [workspaceName] = WorkspaceName),
   Custom = #"Filtered rows"{0}[Data],
   #"Filtered rows 1" = Table.SelectRows(Custom, each ([lakehouseName] = LakehouseName)),
   #"Custom 1" = #"Filtered rows 1"{0}[Data],
-  #"Navigation 1" = #"Custom 1"{[Id = TableName, ItemKind = "Table"]}[Data]
+  #"Filtered rows 2" = Table.SelectRows(#"Custom 1", each [Name] = TableName),
+  #"Custom 2" = 
+    if Table.RowCount(#"Filtered rows 2") = 0 
+    then EmptyTableIfNotFound
+    else #"Filtered rows 2"{0}[Data]
 in
-  #"Navigation 1"
+  #"Custom 2"
