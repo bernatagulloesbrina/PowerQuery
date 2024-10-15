@@ -1,8 +1,21 @@
-(myTable as table, field1 as text, field2 as text, optional outputField as text) as table =>
+(myTable as table, field1 as text, field2 as text, optional outputField as text, optional removeField1 as logical, optional removeField2 as logical) as table =>
 let
   tempFieldName = "@@@123###",
   Source = Table.AddColumn(myTable, tempFieldName, each Record.Field(_,field1) ?? Record.Field(_,field2)),
-  CleanUp = Table.RemoveColumns(Source,{field1,field2}),
+  
+  fields = {field1,field2},
+  keepFieldBool = {removeField1 ?? true,removeField2 ?? true},
+  removeFields = 
+    List.Accumulate(
+      {0,1},
+      {},
+      (current,i) => 
+        if keepFieldBool{i} 
+        then List.Combine({current,{fields{i}}})
+        else current
+    ),
+  
+  CleanUp = Table.RemoveColumns(Source,removeFields),
 
   Rename = 
     if List.Contains(Table.ColumnNames(CleanUp),outputField) 
