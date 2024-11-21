@@ -18,8 +18,8 @@ let
   CleanUp = Table.RemoveColumns(Source,removeFields),
 
   Rename = 
-    if List.Contains(Table.ColumnNames(CleanUp),outputField) 
+    if List.Contains(Table.ColumnNames(CleanUp),outputField ?? field2) 
       then error outputField & " is already on the Table!" 
-      else Table.RenameColumns(CleanUp,{tempFieldName,outputField})
+      else Table.RenameColumns(CleanUp,{tempFieldName,outputField ?? field2})
 in
   Rename
