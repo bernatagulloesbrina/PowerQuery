@@ -1,3 +1,4 @@
+//fxSnakeCaseToSpaces
 (t as table) =>
 let
     Source = Table.TransformColumnNames(t,each Text.Proper(Text.Replace(_,"_"," ")))
