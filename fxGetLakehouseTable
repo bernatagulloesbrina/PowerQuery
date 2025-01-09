@@ -1,3 +1,4 @@
+//fxGetLakehouseTable
 (WorkspaceName as text,LakehouseName  as text, TableName as text,  optional EmptyTableIfNotFound as table) =>
 let
   Source = Lakehouse.Contents(null),
