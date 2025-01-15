@@ -1,3 +1,4 @@
+//fxCompareData
 (table1 as table, table2 as table, table1name as text, table2name as text, idField as text) =>
 let
     //find common fields by name
