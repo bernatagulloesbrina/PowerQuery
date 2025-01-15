@@ -1,0 +1,15 @@
+//fxGetNonMatchingIdsWithData
+(table1 as table, table2 as table, table1name as text, table2name as text, idField as text) =>
+let
+    t1Ids = List.Buffer(Table.Column(table1,idField)),
+    t2Ids = List.Buffer(Table.Column(table2,idField)),
+    t1Nott2Ids = List.Select(t1Ids,each not List.Contains(t2Ids, _)),
+    t2Nott1Ids = List.Select(t2Ids,each not List.Contains(t1Ids, _)),
+    t1Nott2 = Table.SelectRows(table1, each List.Contains(t1Nott2Ids,Record.Field(_,idField))),
+    t2Nott1 = Table.SelectRows(table2, each  List.Contains(t2Nott1Ids,Record.Field(_,idField))),
+    t1Nott2append = Table.AddColumn(t1Nott2,"_check",each "present in " & table1name & " not present in " & table2name),
+    t2nott1append = Table.AddColumn(t2Nott1, "_check",each "present in " & table2name & " not present in " & table1name),
+    result = Table.Combine({t1Nott2append,t2nott1append})
+
+in
+    result
