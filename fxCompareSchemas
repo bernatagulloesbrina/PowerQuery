@@ -1,3 +1,4 @@
+//fxCompareSchemas
 (table1 as table, table2 as table, table1name as text, table2name as text) as table =>
 let
   SchemaA = Table.RenameColumns(Table.SelectColumns(Table.Schema(table1),{"Name","Kind"}),{{"Name","Name " & table1name}, {"Kind","Kind " & table1name}}),
