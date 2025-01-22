@@ -1,3 +1,4 @@
+//fxSpacesToSnakeCase
 (tbl as table) =>
 let
   Source = Table.TransformColumnNames(tbl, each Text.Lower(Text.Replace(_," ","_")))
