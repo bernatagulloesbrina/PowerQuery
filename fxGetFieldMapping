@@ -1,8 +1,17 @@
 //fxGetFieldMapping
 (source_table as table, destination_table as table) =>
 let
-  Source = source_schema(source_table),
-  #"Merged queries" = Table.NestedJoin(Source, {"Position"}, destination_schema(destination_table), {"Position"}, "destination schema", JoinKind.LeftOuter),
+  fxGetSchema = (tbl as table,role as text) => 
+    let
+      Source =tbl,
+      Custom = Table.Schema(Source),
+      #"Removed other columns" = Table.SelectColumns(Custom, {"Name", "Position"}),
+      #"Renamed columns" = Table.RenameColumns(#"Removed other columns", {{"Name", role & "_name"}})
+    in
+      #"Renamed columns",
+  source_schema = fxGetSchema(source_table,"source"),
+  destination_schema = fxGetSchema(destination_table,"destination")
+  #"Merged queries" = Table.NestedJoin(source_schema, {"Position"}, destination_schema, {"Position"}, "destination schema", JoinKind.LeftOuter),
   #"Expanded destination schema" = Table.ExpandTableColumn(#"Merged queries", "destination schema", {"destination_name"}, {"destination_name"})
 in
   #"Expanded destination schema"
