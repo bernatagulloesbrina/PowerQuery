@@ -1,0 +1,8 @@
+//fxGetFieldMapping
+(source_table as table, destination_table as table) =>
+let
+  Source = source_schema(source_table),
+  #"Merged queries" = Table.NestedJoin(Source, {"Position"}, destination_schema(destination_table), {"Position"}, "destination schema", JoinKind.LeftOuter),
+  #"Expanded destination schema" = Table.ExpandTableColumn(#"Merged queries", "destination schema", {"destination_name"}, {"destination_name"})
+in
+  #"Expanded destination schema"
