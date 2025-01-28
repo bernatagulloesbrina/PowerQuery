@@ -10,7 +10,7 @@ let
     in
       #"Renamed columns",
   source_schema = fxGetSchema(source_table,"source"),
-  destination_schema = fxGetSchema(destination_table,"destination")
+  destination_schema = fxGetSchema(destination_table,"destination"),
   #"Merged queries" = Table.NestedJoin(source_schema, {"Position"}, destination_schema, {"Position"}, "destination schema", JoinKind.LeftOuter),
   #"Expanded destination schema" = Table.ExpandTableColumn(#"Merged queries", "destination schema", {"destination_name"}, {"destination_name"})
 in
