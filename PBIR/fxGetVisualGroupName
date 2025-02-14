@@ -1,0 +1,11 @@
+//fxGetVisualGroupName
+(VisualGroupJsonFile as binary) =>
+let
+  Source = VisualGroupJsonFile,
+  Custom = Json.Document(Source,65001),
+  Navigation = if List.Contains(Record.FieldNames(Custom),"visualGroup") then Table.FromRecords({Custom[visualGroup]},type table[displayName = Text.Type, groupMode = Text.Type]) else null,
+  #"Custom 1" = if Navigation = null then null else Table.SelectColumns(Navigation, {"displayName"}),
+  #"Renamed columns" = if #"Custom 1" = null then null else Table.RenameColumns(#"Custom 1", {{"displayName", "groupName"}})
+  
+in
+   #"Renamed columns"
