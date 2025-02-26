@@ -1,9 +1,19 @@
 //fxCompareSchemas
-(table1 as table, table2 as table, table1name as text, table2name as text) as table =>
+(table1 as table, table2 as table, 
+  table1name as text, table2name as text, 
+  optional ignoreDataType as logical, optional ignoreCase as logical) as table =>
+  
 let
-  SchemaA = Table.RenameColumns(Table.SelectColumns(Table.Schema(table1),{"Name","Kind"}),{{"Name","Name " & table1name}, {"Kind","Kind " & table1name}}),
-  SchemaB = Table.RenameColumns(Table.SelectColumns(Table.Schema(table2),{"Name","Kind"}),{{"Name","Name " & table2name}, {"Kind","Kind " & table2name}}),
-  Custom = Table.NestedJoin(SchemaA,{"Name " & table1name,"Kind " & table1name},SchemaB,{"Name " & table2name,"Kind " & table2name},"table2",JoinKind.FullOuter),
-  Expanded = Table.ExpandTableColumn(Custom, "table2", {"Name " & table2name, "Kind " & table2name}, {"Name " & table2name, "Kind " & table2name})
+  extractFields =  if ignoreDataType ?? false then {"Name"} else {"Name","Kind"},
+  fieldsA = if ignoreDataType ?? false then {"Name " & table1name} else {"Name " & table1name,"Kind " & table1name},
+  fieldsB = if ignoreDataType ?? false then {"Name " & table2name} else   {"Name " & table2name,"Kind " & table2name},
+  
+  SchemaA = Table.TransformColumns(Table.RenameColumns(Table.SelectColumns(Table.Schema(table1),extractFields),List.Zip({extractFields,fieldsA})),{{"Name " & table1name,if ignoreCase ?? false then Text.Lower else each _}}),
+  SchemaB = Table.TransformColumns(Table.RenameColumns(Table.SelectColumns(Table.Schema(table2),extractFields),List.Zip({extractFields,fieldsB})),{{"Name " & table2name,if ignoreCase ?? false then Text.Lower else each _}}),
+  
+  Custom = Table.NestedJoin(SchemaA,fieldsA,SchemaB,fieldsB,"table2",JoinKind.FullOuter),
+  Expanded = Table.ExpandTableColumn(Custom, "table2", fieldsB, fieldsB),
+
+  result = Table.AddColumn(Expanded,"Check", each if Record.Field(_,"Name " & table1name ) = null then "New?" else if Record.Field(_,"Name " & table2name ) = null then "Deleted?" else "Match" )
 in
-  Expanded
+  result
