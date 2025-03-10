@@ -1,0 +1,28 @@
+//fxTableToSelectIntoSQL
+//2025-03-10 / B.Agullo
+(tableName as text, inputTable as table, optional schemaName2 as text) =>
+    let
+        // Get the column names from the table
+        columnNames = Table.ColumnNames(inputTable),
+        
+        // Create the column list for the SQL statement
+        columnList = List.Transform(columnNames, each "AS [" & _ & "]"),
+
+        // Create the list of value rows for the SQL statement
+        valueRows = List.Transform(Table.ToRows(inputTable), each 
+            List.Transform(_, each "'" & Text.Replace(Text.From(_ ?? ""), "'", "''") & "'")
+        ),
+
+        // combien to create the alias for each field
+        valueRowsWithField = List.Transform(valueRows,each List.Transform(List.Zip({_,columnList}),each Text.Combine(_," "))), 
+
+        //combine in a single string with SELECT and "," between fields
+        selectList = List.Transform(valueRowsWithField,each "SELECT #(lf)" & Text.Combine(_,"#(lf),")),
+        
+        //combine all select statements into a single string
+        unionAll = Text.Combine(selectList,"#(lf)" & "UNION ALL" & "#(lf)"),       
+        
+        // Generate the final SQL statement
+        sqlStatement = "SELECT *  #(lf) INTO [" & (schemaName2 ?? "dbo") & "].[" & tableName & "] #(lf) FROM (" & unionAll & ") V"
+    in
+        sqlStatement
