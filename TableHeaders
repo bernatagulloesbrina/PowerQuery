@@ -1,0 +1,8 @@
+//fxCleanHeadersMany
+(tbl as table, sufixesToRemove as list) =>
+let
+    Source = tbl, 
+    removeList = List.Buffer(sufixesToRemove),
+    clean = Table.TransformColumnNames(Source,(h) => List.Accumulate(removeList,h,(result,x)=> Text.Replace(result,x,"")))
+in
+    clean
