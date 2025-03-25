@@ -1,0 +1,73 @@
+//fxCamelCaseToSpaces
+(t as table) =>
+let
+    //fxSnakeCaseToSpaces
+    fxSnakeCaseToSpaces = (t as table) =>
+    let
+        Source = Table.TransformColumnNames(t,each Text.Proper(Text.Replace(_,"_"," ")))
+    in
+        Source,
+    
+    
+    // Function to remove consecutive numbers, keeping only the first occurrence
+    RemoveConsecutiveNumbers = (lst as list) as list =>
+    let
+        // Sort the list (just in case)
+        sortedList = List.Sort(lst),
+
+        // Add an index to track positions
+        indexedList = List.Zip({sortedList, List.Skip(sortedList, 1)}),
+
+        // Keep the first number and any number that is NOT consecutive
+        filteredList = List.FirstN(sortedList, 1) & 
+                    List.Transform(List.Select(indexedList, each _{1} <> _{0} + 1), each _{0})
+    in
+        filteredList,
+    
+    
+    // Function to check if a header is already in snake_case
+    IsSnakeCase = (header as text) as logical =>
+        Text.Contains(header, "_") and 
+        Text.Lower(header) = header and 
+        not List.AnyTrue(List.Transform({"A".."Z"}, each Text.Contains(header, _))) and 
+        not Text.Contains(header,"__"),
+    
+    // Function to check if a header is a single word without mixed letters and numbers
+    IsSingleWord = (header as text) as logical =>
+        not Text.Contains(header, " ") and
+        not List.AnyTrue(List.Transform({"A".."Z"}, each Text.Contains(header, _))) and
+        not List.AnyTrue(List.Transform({"0".."9"}, each Text.Contains(header, _))),
+
+    // Function to transform camelCase or mixed words to snake_case
+    ToSnakeCase = (header as text) as text =>
+        let
+            // Find the positions of capital letters using Occurrence.All
+            capitalPositionsRaw = Text.PositionOfAny(header, {"A".."Z","_"}, Occurrence.All),
+            capitalPositions = RemoveConsecutiveNumbers(capitalPositionsRaw),
+            // Find the positions of numbers using Occurrence.All
+            numberPositions = Text.PositionOfAny(header, {"0".."9"}, Occurrence.All),
+            // Combine capital and number positions, including the start position
+            positions = List.Sort(List.Distinct(List.Combine({{0}, capitalPositions, numberPositions}))),
+            // Split the text at the positions
+            splitWords = List.Transform(Splitter.SplitTextByPositions(positions)(header), each Text.Lower(_)),
+            // Combine the words with underscores
+            finalResult = Text.Combine(splitWords, "_"),
+            finalResult2 = Text.Replace(finalResult," ",""),
+            finalResult3 = Text.Replace(finalResult2,"__","_"),
+            finalResult4 = Text.Replace(finalResult3,"__","_")
+            
+        in
+            finalResult4,
+
+    // Apply the transformation only to headers that need it
+    Source = Table.TransformColumnNames(
+        t, 
+        // each let a = if IsSnakeCase(_) or IsSingleWord(_) then _ else ToSnakeCase(_), 
+        //     b = Text.Replace(Text.Replace(_,"__","_"),"__","_")
+        //     in b
+        each if IsSnakeCase(_) or IsSingleWord(_) then _ else ToSnakeCase(_)
+    ),
+
+    final = fxSnakeCaseToSpaces(Source)
+in
+    final
