@@ -1,0 +1,11 @@
+//fxGetDataflowTable
+(Workspace as text, Dataflow as text, Entity as text) =>
+let
+    Source = PowerPlatform.Dataflows(null),
+    Custom1 = Source,
+    Workspaces = Custom1{[Id="Workspaces"]}[Data],
+    Workspace_Name = Workspaces{[workspaceName= Workspace]}[Data],
+    Dataflow_Name = Workspace_Name{[dataflowName=Dataflow]}[Data],
+    Entity_Name = Dataflow_Name{[entity=Entity,version=""]}[Data]
+in 
+    Entity_Name
