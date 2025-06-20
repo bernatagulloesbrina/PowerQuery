@@ -1,0 +1,9 @@
+//fxGetSqlServerTable
+(ServerName as text, DatabaseName as text, TableName as text, optional SchemaName as text) =>
+let
+    Schema = SchemaName ?? "dbo",
+    Source = Sql.Database(SqlServer,DatabaseName),
+    dbo_Stock_vw = Source{[Schema=Schema,Item=TableOrViewName]}[Data],
+    Custom1 = fxSnakeCaseToSpaces(dbo_Stock_vw)
+in
+    Custom1
