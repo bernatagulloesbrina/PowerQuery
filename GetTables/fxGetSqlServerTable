@@ -1,9 +1,16 @@
 //fxGetSqlServerTable
-(ServerName as text, DatabaseName as text, TableName as text, optional SchemaName as text) =>
+(Database as table, TableOrViewName as text, optional SchemaName as text) =>
 let
+    /*
+    //database must be an existing query with all the tables and views of the database
+    //accessing it here results in dynamic datasource error
+    Database = myDatabaseQuery,
+    TableOrViewName = "",
+    SchemaName = null,
+    */
     Schema = SchemaName ?? "dbo",
-    Source = Sql.Database(SqlServer,DatabaseName),
-    dbo_Stock_vw = Source{[Schema=Schema,Item=TableOrViewName]}[Data],
-    Custom1 = fxSnakeCaseToSpaces(dbo_Stock_vw)
+    Source = Database,
+    rawData = Source{[Schema=Schema,Item=TableOrViewName]}[Data],
+    cleanHeaders = fxSnakeCaseToSpaces(rawData)
 in
-    Custom1
+    cleanHeaders
