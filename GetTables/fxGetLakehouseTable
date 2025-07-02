@@ -1,6 +1,13 @@
 //fxGetLakehouseTable
+//coment next line to switch to query mode
 (WorkspaceName as text,LakehouseName  as text, TableName as text,  optional EmptyTableIfNotFound as table) =>
 let
+/* Debug in query mode
+WorkspaceName = "",
+LakehouseName = "",
+TableName = "",
+EmptyTableIfNotFound = null, 
+*/
   Source = Lakehouse.Contents(null),
   #"Filtered rows" = Table.SelectRows(Source, each [workspaceName] = WorkspaceName),
   Custom = #"Filtered rows"{0}[Data],
