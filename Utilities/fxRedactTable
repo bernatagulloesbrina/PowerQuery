@@ -1,0 +1,14 @@
+// 2025-10-28 / B.Agullo
+// Redact all fields except for the specified key fields
+(myTable as table, keyFields as list) =>
+let
+    //myTable = hcp_info,
+    //keyFields = {"顧客コード"},
+    allFieldNames = Table.ColumnNames(myTable),
+    fieldsToRedact = List.Select(allFieldNames, each not List.Contains(keyFields, _)),
+    fieldsValue = List.Transform(fieldsToRedact,each null),
+    redactedRecord = Record.FromList(fieldsValue,fieldsToRedact),
+    redactedTable = Table.AddColumn(Table.SelectColumns(myTable,keyFields),"fields",each redactedRecord),
+    expanded = Table.ExpandRecordColumn(redactedTable,"fields",fieldsToRedact)
+in
+    expanded
