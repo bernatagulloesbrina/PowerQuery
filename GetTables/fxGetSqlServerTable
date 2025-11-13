@@ -5,9 +5,9 @@ let
     //database must be an existing query with all the tables and views of the database
     //accessing it here results in dynamic datasource error
     /*
-    Database = #"Amazon Test",
-    TableOrViewName = "account__v",
-    SchemaName = "crm_jp_report_current__v",
+    Database = ,
+    TableOrViewName = ,
+    SchemaName = ,
     */
     Schema = SchemaName ?? "dbo",
     Source = Database,
