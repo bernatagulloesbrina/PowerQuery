@@ -1,0 +1,26 @@
+//fxGetDuplicates
+//returns a table with two columns, the first is the name of the field and the second all the values that have been found more than once in that field. 
+//it is possible to limit the fields to be checked with a list of field names, otherwise all are checked. 
+(myTable as table, optional fieldsToCheck as any) =>
+let
+  /*
+  myTable =Table,
+  fieldsToCheck = null,
+  */
+  Source = myTable,
+  Fields = fieldsToCheck ?? Table.ColumnNames(myTable),
+  checkField = (myTable2 as table, fieldName as text) =>
+    let 
+      #"Removed other columns" = Table.SelectColumns(myTable2, {fieldName}),
+      #"Kept duplicates" = let columnNames = Table.ColumnNames(#"Removed other columns"), addCount = Table.Group(#"Removed other columns", columnNames, {"Count", Table.RowCount, type number}), selectDuplicates = Table.SelectRows(addCount, each [Count] > 1), removeCount = Table.RemoveColumns(selectDuplicates, "Count") in Table.Join(#"Removed other columns", columnNames, removeCount, columnNames, JoinKind.Inner),
+      #"Removed duplicates" = Table.Distinct(#"Kept duplicates", {fieldName}),
+      duplicateIds = Table.Column(#"Removed duplicates",fieldName),
+      #"Custom 1" = [Field Name=fieldName, Duplicate Ids=Text.Combine(List.Transform(duplicateIds,Text.From),", ")]
+    in 
+      #"Custom 1",
+  getRecords = List.Transform(Fields, each checkField(myTable,_)),
+  result = Table.FromRecords(getRecords),
+  #"Filtered rows" = Table.SelectRows(result, each ([Duplicate Ids] <> null and [Duplicate Ids] <> "")),
+  #"Changed column type" = Table.TransformColumnTypes(#"Filtered rows", {{"Duplicate Ids", type text}, {"Field Name", type text}})
+in
+  #"Changed column type"
