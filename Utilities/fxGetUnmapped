@@ -1,0 +1,15 @@
+//fxGetUnmapped
+(myTable as table, nullCheckColumn as text, sourceColumn as text, targetColumn as text) =>
+let
+  /*myTable =#"Mapping Check",
+  nullCheckColumn = "importer_key", 
+  sourceColumn = "Importer Number",
+  targetColumn = "importer_code",*/
+  Source = myTable,
+  #"Filtered rows" = Table.SelectRows(Source, each (Record.Field(_,nullCheckColumn) = null)),
+  #"Removed other columns" = Table.SelectColumns(#"Filtered rows", {sourceColumn}),
+  #"Removed duplicates" = Table.Distinct(#"Removed other columns", {sourceColumn}),
+  #"Renamed columns" = Table.RenameColumns(#"Removed duplicates", {{sourceColumn, targetColumn}}),
+  #"Unpivoted columns" = Table.UnpivotOtherColumns(#"Renamed columns", {}, "Field", "Value")
+in
+  #"Unpivoted columns"
