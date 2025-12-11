@@ -9,13 +9,13 @@ let
     #"Inserted Quarter" = Table.AddColumn(#"Inserted Year", "Quarter", each Date.QuarterOfYear([Date]), Int64.Type),
     #"Added Custom3" = Table.AddColumn(#"Inserted Quarter", "Quarter Name", each "Q" & Text.From([Quarter])),
     #"Added Custom4" = Table.AddColumn(#"Added Custom3", "Quarter Year", each [Quarter Name] & " " & Text.From([Year])),
-    #"Added Custom5" = Table.AddColumn(#"Added Custom4", "Quarter Year Number ", each [Year] * 100 + [Quarter]),
+    #"Added Custom5" = Table.AddColumn(#"Added Custom4", "Quarter Year Number", each [Year] * 100 + [Quarter]),
     #"Inserted Month" = Table.AddColumn(#"Added Custom5", "Month", each Date.Month([Date]), Int64.Type),
     #"Inserted Month Name" = Table.AddColumn(#"Inserted Month", "Month Name", each Date.MonthName([Date],"en-us"), type text),
     #"Added Custom" = Table.AddColumn(#"Inserted Month Name", "Month Year", each [Month Name] & " " & Text.From([Year])),
     #"Inserted First Characters" = Table.AddColumn(#"Added Custom", "Month Name Short", each Text.Start([Month Name], 3), type text),
     #"Added Custom1" = Table.AddColumn(#"Inserted First Characters", "Month Year Short", each [Month Name Short] & " " & Text.From([Year])),
     #"Added Custom2" = Table.AddColumn(#"Added Custom1", "Year Month Number", each [Year] * 100 + [Month]),
-    #"Changed Type" = Table.TransformColumnTypes(#"Added Custom2",{{"Year Month Number", Int64.Type}, {"Quarter Year Number ", Int64.Type}, {"Month Year", type text}, {"Month Name Short", type text}, {"Month Year Short", type text}})
+    #"Changed Type" = Table.TransformColumnTypes(#"Added Custom2",{{"Year Month Number", Int64.Type}, {"Quarter Year Number", Int64.Type}, {"Month Year", type text}, {"Month Name Short", type text}, {"Month Year Short", type text}})
 in 
     #"Changed Type"
