@@ -1,0 +1,8 @@
+//fxExpandTableColumn
+(myTable as table, tableFieldName as text) =>
+let
+  //myTable = "",
+  Source = myTable,
+  result = Table.ExpandTableColumn(Source, tableFieldName, Table.ColumnNames(Table.Column(myTable,tableFieldName){0}) )
+in
+  Source
