@@ -5,4 +5,4 @@ let
   Source = myTable,
   result = Table.ExpandTableColumn(Source, tableFieldName, Table.ColumnNames(Table.Column(myTable,tableFieldName){0}) )
 in
-  Source
+  result
