@@ -1,0 +1,6 @@
+//fxTransformBooleanField
+(myTable as table, booleanFieldName as text, valueIfTrue as text, valueIfFalse as text) =>
+let
+  Source =  Table.TransformColumns(myTable,{{booleanFieldName,each if _ then valueIfTrue else valueIfFalse}})
+in
+  Source
