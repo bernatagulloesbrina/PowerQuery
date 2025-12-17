@@ -1,5 +1,5 @@
 //fxExpandByDateRange
-(myTable as table, startDateFieldName as text, endDateFieldName as text, optional outputFieldName as text, optional removeInputDateFields as logical, includeRowCount as logical) =>
+(myTable as table, startDateFieldName as text, endDateFieldName as text, optional outputFieldName as text, optional removeInputDateFields as logical, optional includeRowCount as logical) =>
 let
   
   /*
