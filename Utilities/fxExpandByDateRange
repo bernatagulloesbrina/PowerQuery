@@ -1,0 +1,24 @@
+//fxExpandByDateRange
+(myTable as table, startDateFieldName as text, endDateFieldName as text, optional outputFieldName as text, optional removeInputDateFields as logical) =>
+let
+  
+  /*
+  myTable = #"invoiced_by_day step 30",
+  startDateFieldName = "estimated_start_date",
+  endDateFieldName = "estimated_end_date",
+  outputFieldName = null, 
+  removeInputDateFields = null,
+  includeRowCount = null,
+  */
+  
+  dateFieldName = outputFieldName ?? "date",
+  
+  Source = myTable,
+  #"Added custom" = Table.AddColumn(Source, dateFieldName, each {Number.From(Record.Field(_,startDateFieldName))..Number.From(Record.Field(_,endDateFieldName))}),
+  withRowcount = if includeRowCount ?? true then Table.AddColumn(#"Added custom","Count of dates", each List.Count(Record.Field(_,dateFieldName))) else #"Added custom",
+  #"Expanded date" = Table.ExpandListColumn(withRowcount,dateFieldName),
+  #"Changed column type" = Table.TransformColumnTypes(#"Expanded date", {{dateFieldName, type date}}),
+  result = if removeInputDateFields ?? true then Table.RemoveColumns(#"Changed column type",{startDateFieldName,endDateFieldName}) else #"Changed column type"
+  
+in
+  result
