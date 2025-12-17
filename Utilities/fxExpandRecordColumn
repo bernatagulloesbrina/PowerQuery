@@ -1,0 +1,8 @@
+//fxExpandRecordColumn
+(myTable as table, recordFieldName as text) =>
+let
+  //myTable = "",
+  Source = myTable,
+  result = Table.ExpandRecordColumn(Source, recordFieldName, Record.FieldNames(Table.Column(myTable,recordFieldName){0}) )
+in
+  result
