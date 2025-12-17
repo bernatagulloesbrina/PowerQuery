@@ -3,6 +3,9 @@
 let
   //myTable = "",
   Source = myTable,
-  result = Table.ExpandTableColumn(Source, tableFieldName, Table.ColumnNames(Table.Column(myTable,tableFieldName){0}) )
+  SourceTableFieldNames = Table.ColumnNames(Source),
+  NestedTableFieldNames = Table.ColumnNames(Table.Column(myTable,tableFieldName){0}),
+  AdjustedNestedTableFieldNames = List.Transform(NestedTableFieldNames,each if List.Contains(SourceTableFieldNames,_) then _ & ".1" else _),
+  result = Table.ExpandTableColumn(Source, tableFieldName, NestedTableFieldNames, AdjustedNestedTableFieldNames)
 in
   result
