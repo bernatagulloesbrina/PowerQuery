@@ -1,21 +1,26 @@
 //fxCompareLists
+//2025-12-19 / B.Agullo / added ignoreCasing optinal parameter
 //2025-11-14 / B.Agullo / compares two lists returning a table
-(myList1 as list, myList2 as list, myList1Name as text, myList2Name as text )=>
+(myList1 as list, myList2 as list, myList1Name as text, myList2Name as text , optional ignoreCasing as logical)=>
 let
     /*
     myList1 = #"check data temp 10"{0}[CompareFieldsOld],
     myList2 = #"check data temp 10"{0}[OldFieldNames],
     myList1Name = "List1",
     myList2Name = "List2",
+    ignoreCasing = null,
     */
-    list1 = myList1,
-    Custom1 = list1,
-    list2 = myList2,
-    source1 = List.Transform(Custom1,each myList1Name ),
+    
+    list1 = if ignoreCasing ?? true then List.Transform(myList1, Text.Lower) else myList1,
+    list2 = if ignoreCasing ?? true then List.Transform(myList2, Text.Lower) else myList2,
+    
+    source1 = List.Transform(list1,each myList1Name ),
     source2 = List.Transform(list2,each myList2Name),
-    table1 = Table.FromColumns({Custom1,source1},{"Value","Source"}),
+    
+    table1 = Table.FromColumns({list1,source1},{"Value","Source"}),
     table2 = Table.FromColumns({list2,source2},{"Value","Source"}),
     tableAll = Table.Combine({table1,table2}),
+    
     #"Removed Duplicates" = Table.Distinct(tableAll),
     #"Added Custom" = Table.AddColumn(#"Removed Duplicates", "Custom", each 1),
     #"Pivoted Column" = Table.Pivot(#"Added Custom", List.Distinct(#"Added Custom"[Source]), "Source", "Custom", List.Sum),
