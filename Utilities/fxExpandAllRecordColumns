@@ -1,0 +1,34 @@
+//fxExpandAllRecordColumns
+(tableToExpand as table) => 
+let 
+  //tableToExpand = #"jobitems-all",
+  
+  _fxGetRecordColumns = (table as table) as list =>
+    let
+        FirstRow = table{0},
+        ColumnsWithRecords =
+            Record.FieldNames(
+                Record.SelectFields(
+                    FirstRow,
+                    List.Select(
+                        Record.FieldNames(FirstRow),
+                        (c) => Value.Is(Record.Field(FirstRow, c), type record)
+                    )
+                )
+            )
+    in
+        ColumnsWithRecords,
+  _fxExpandRecordColumn = (myTable as table, recordFieldName as text) =>
+    let
+      //myTable = "",
+      Source = myTable,
+      sourceFieldNames = Table.ColumnNames(Source),
+      originalFieldNames = Record.FieldNames(Table.Column(myTable,recordFieldName){0}),
+      safeFieldNames = List.Transform(originalFieldNames, each if List.Contains(sourceFieldNames, _) then recordFieldName & "." & _ else _),
+      result = Table.ExpandRecordColumn(Source, recordFieldName, originalFieldNames, safeFieldNames)
+    in
+      result,
+  #"Custom 1" = _fxGetRecordColumns( tableToExpand),
+  #"Custom 2" = List.Accumulate( #"Custom 1",tableToExpand,(state,current) => _fxExpandRecordColumn(state,current))
+in 
+  #"Custom 2"
