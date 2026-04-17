@@ -1,6 +1,14 @@
 //fxSpacesToSnakeCase
 (tbl as table) =>
 let
-  Source = Table.TransformColumnNames(tbl, each Text.Lower(Text.Replace(_," ","_")))
+  Source = Table.TransformColumnNames(
+    tbl, each 
+    let
+      underscores = Text.Replace(_," ","_"),
+      lowercase = Text.Lower(underscores), 
+      pct = Text.Replace(lowercase,"%","pct")
+    in
+      pct
+    )
 in
   Source
