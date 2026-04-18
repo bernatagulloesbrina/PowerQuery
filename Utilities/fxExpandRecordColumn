@@ -1,8 +1,53 @@
 //fxExpandRecordColumn
-(myTable as table, recordFieldName as text) =>
+(myTable as table, recordFieldName as text, optional dynamicSchema as nullable logical) =>
 let
-  //myTable = "",
+  // dynamicSchema = false (default)
+  //   Fast path. Read field names from the FIRST non-null record only.
+  //   Equivalent to what the Power Query "Expand" button does. If later
+  //   rows carry extra fields they're dropped silently — which is usually
+  //   what you want in a governed pipeline, since any new field needs a
+  //   deliberate mapping update.
+  //
+  // dynamicSchema = true
+  //   Scan ALL non-null records and take the union of their field names,
+  //   preserving first-seen order. Use only when the nested records
+  //   genuinely have drifting shapes (e.g. JSON APIs that add fields).
+  useDynamic = if dynamicSchema = null then false else dynamicSchema,
   Source = myTable,
-  result = Table.ExpandRecordColumn(Source, recordFieldName, Record.FieldNames(Table.Column(myTable,recordFieldName){0}) )
+  SourceFieldNames = Table.ColumnNames(Source),
+  // Values in the target column — may contain nulls, errors or non-records
+  NestedValues = Table.Column(Source, recordFieldName),
+  // Keep only actual records (skip nulls, errors, non-record values)
+  NestedRecords = List.Select(NestedValues, each _ is record),
+  NestedRecordFieldNames =
+    if List.IsEmpty(NestedRecords) then
+      {}
+    else if useDynamic then
+      List.Distinct(
+        List.Combine(
+          List.Transform(NestedRecords, each Record.FieldNames(_))
+        )
+      )
+    else
+      Record.FieldNames(NestedRecords{0}),
+  result =
+    if Table.IsEmpty(Source) or List.IsEmpty(NestedRecords) then
+      // Nothing to expand — return source unchanged so downstream steps
+      // see a consistent shape instead of hitting a null-conversion error
+      Source
+    else
+      let
+        AdjustedNestedRecordFieldNames =
+          List.Transform(
+            NestedRecordFieldNames,
+            each if List.Contains(SourceFieldNames, _) then _ & ".1" else _
+          )
+      in
+        Table.ExpandRecordColumn(
+          Source,
+          recordFieldName,
+          NestedRecordFieldNames,
+          AdjustedNestedRecordFieldNames
+        )
 in
   result
