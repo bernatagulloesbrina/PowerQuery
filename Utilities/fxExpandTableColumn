@@ -1,11 +1,56 @@
 //fxExpandTableColumn
-(myTable as table, tableFieldName as text) =>
+(myTable as table, tableFieldName as text, optional dynamicSchema as nullable logical) =>
 let
-  //myTable = "",
+  // dynamicSchema = false (default)
+  //   Fast path. Read column names from the FIRST non-null nested table
+  //   only. Equivalent to what the Power Query "Expand" button does, and
+  //   cheap because no other nested table has to be materialised just to
+  //   read its metadata. If a later source file adds a column it will be
+  //   dropped silently — which is usually what you want in a governed
+  //   pipeline, since any new column needs a deliberate mapping update.
+  //
+  // dynamicSchema = true
+  //   Scan ALL non-null nested tables and take the union of their column
+  //   names, preserving first-seen order. Costs one workbook
+  //   materialisation per file. Use only when source files genuinely
+  //   have drifting schemas and you want downstream queries to surface
+  //   every column.
+  useDynamic = if dynamicSchema = null then false else dynamicSchema,
   Source = myTable,
   SourceTableFieldNames = Table.ColumnNames(Source),
-  NestedTableFieldNames = Table.ColumnNames(Table.Column(myTable,tableFieldName){0}),
-  AdjustedNestedTableFieldNames = List.Transform(NestedTableFieldNames,each if List.Contains(SourceTableFieldNames,_) then _ & ".1" else _),
-  result = Table.ExpandTableColumn(Source, tableFieldName, NestedTableFieldNames, AdjustedNestedTableFieldNames)
+  // Values of the nested column — may contain nulls or non-table values
+  NestedValues = Table.Column(Source, tableFieldName),
+  // Keep only actual tables (skip nulls, errors, non-table values)
+  NestedTables = List.Select(NestedValues, each _ is table),
+  NestedTableFieldNames =
+    if List.IsEmpty(NestedTables) then
+      {}
+    else if useDynamic then
+      List.Distinct(
+        List.Combine(
+          List.Transform(NestedTables, each Table.ColumnNames(_))
+        )
+      )
+    else
+      Table.ColumnNames(NestedTables{0}),
+  result =
+    if Table.IsEmpty(Source) or List.IsEmpty(NestedTables) then
+      // Nothing to expand — return source unchanged so downstream steps
+      // see a consistent shape instead of hitting error 10277
+      Source
+    else
+      let
+        AdjustedNestedTableFieldNames =
+          List.Transform(
+            NestedTableFieldNames,
+            each if List.Contains(SourceTableFieldNames, _) then _ & ".1" else _
+          )
+      in
+        Table.ExpandTableColumn(
+          Source,
+          tableFieldName,
+          NestedTableFieldNames,
+          AdjustedNestedTableFieldNames
+        )
 in
   result
