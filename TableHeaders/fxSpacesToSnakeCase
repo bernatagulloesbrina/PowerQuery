@@ -1,14 +1,60 @@
 //fxSpacesToSnakeCase
 (tbl as table) =>
 let
-  Source = Table.TransformColumnNames(
-    tbl, each 
+  // --- normalize one name ---
+  fxSnake = (name as text) =>
     let
-      underscores = Text.Replace(_," ","_"),
-      lowercase = Text.Lower(underscores), 
-      pct = Text.Replace(lowercase,"%","pct")
+      // Preserve common meaningful symbols before stripping
+      expanded =
+        Text.Replace(
+          Text.Replace(
+            Text.Replace(name, "%", " pct "),
+            "&", " and "),
+          "#", " num "),
+      lowered = Text.Lower(expanded),
+      // Replace any char outside [a-z0-9] with "_"
+      allowed = "abcdefghijklmnopqrstuvwxyz0123456789",
+      replaced = Text.Combine(
+        List.Transform(
+          Text.ToList(lowered),
+          each if Text.Contains(allowed, _) then _ else "_"
+        )
+      ),
+      // Collapse runs of "_" (five passes handles up to 32 consecutive)
+      collapsed = List.Accumulate(
+        {1..5}, replaced,
+        (s, _) => Text.Replace(s, "__", "_")
+      ),
+      trimmed = Text.Trim(collapsed, "_"),
+      nonEmpty = if trimmed = "" then "col" else trimmed,
+      // M/SQL column names shouldn't start with a digit
+      safe = if Text.Contains("0123456789", Text.Start(nonEmpty, 1))
+             then "c_" & nonEmpty
+             else nonEmpty
     in
-      pct
-    )
+      safe,
+
+  // --- apply across all columns, with collision-safe deduplication ---
+  rawNames  = Table.ColumnNames(tbl),
+  snakeRaw  = List.Transform(rawNames, fxSnake),
+
+  // Walk the list keeping a running count per normalized name; collisions get _2, _3, ...
+  pairs = List.Accumulate(
+    List.Zip({rawNames, snakeRaw}),
+    [seen = [], out = {}],
+    (state, pair) =>
+      let
+        original  = pair{0},
+        candidate = pair{1},
+        priorCount = Record.FieldOrDefault(state[seen], candidate, 0),
+        finalName  = if priorCount = 0 then candidate
+                     else candidate & "_" & Text.From(priorCount + 1),
+        newSeen    = state[seen]
+                     & Record.FromList({priorCount + 1}, {candidate})
+      in
+        [seen = newSeen, out = state[out] & {{original, finalName}}]
+  )[out],
+
+  renamed = Table.RenameColumns(tbl, pairs)
 in
-  Source
+  renamed
