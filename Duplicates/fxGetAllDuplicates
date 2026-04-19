@@ -1,0 +1,16 @@
+//fxGetAllDucplicates
+//each field is treated as a primary key on its own
+(myOriginalTable as table, primaryKeyFields as list, optional infoFields as list) =>
+let
+  Source = List.Accumulate(
+    primaryKeyFields, 
+    null, 
+    (current, field) =>  
+      let 
+        dups = fxGetDuplicatesByField(myOriginalTable,field, infoFields ?? {}),
+        acc = if current = null then dups else Table.Combine({current,dups})
+      in
+        acc
+  )
+in
+  Source
