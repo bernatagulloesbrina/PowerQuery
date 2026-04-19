@@ -1,0 +1,8 @@
+//removeDuplicates
+(myTable as table, primaryKeyFields as list) =>
+let
+  myTable = #"055_DuplicateCheck",
+  Source = myTable,
+  noDups = List.Accumulate(primaryKeyFields, myTable, (Acc, current) => Table.Distinct(Acc, {current}))
+in
+  noDups
