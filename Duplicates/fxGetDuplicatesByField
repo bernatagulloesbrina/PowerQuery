@@ -1,0 +1,74 @@
+//fxGetDuplicatesByField
+(myTable as table, primaryKeyField as text, infoFields as list) =>
+
+let
+    // -------------------------------------------------------------------------
+    // STEP 1: Filter the input table to only rows where the primary key is
+    // duplicated (i.e. appears more than once).
+    // -------------------------------------------------------------------------
+    Source = myTable,
+
+    #"Kept duplicates" =
+        let
+            // Group by the primary key field and count occurrences
+            columnNames     = { primaryKeyField },
+            addCount        = Table.Group(
+                                  Source,
+                                  columnNames,
+                                  { "Count", Table.RowCount, type number }
+                              ),
+
+            // Keep only groups with more than one row (the actual duplicates)
+            selectDuplicates = Table.SelectRows(addCount, each [Count] > 1),
+
+            // Drop the helper Count column before joining back
+            removeCount     = Table.RemoveColumns(selectDuplicates, "Count")
+        in
+            // Inner-join the original table against the duplicate keys so we
+            // get every duplicate row with all its original columns intact
+            Table.Join(
+                Source,     columnNames,
+                removeCount, columnNames,
+                JoinKind.Inner
+            ),
+
+    // -------------------------------------------------------------------------
+    // STEP 2: Retain only the primary key column plus any extra info fields
+    // requested by the caller (defaulting to an empty list if null).
+    // -------------------------------------------------------------------------
+    #"Removed other columns" =
+        Table.SelectColumns(
+            #"Kept duplicates",
+            { primaryKeyField } & (infoFields ?? {})
+        ),
+
+    // -------------------------------------------------------------------------
+    // STEP 3: Add a "Field" column whose value is the primary key field name.
+    // This makes the field name explicit in the output row.
+    // -------------------------------------------------------------------------
+    #"Added custom" =
+        Table.AddColumn(
+            #"Removed other columns",
+            "Field",
+            each primaryKeyField,
+            type text
+        ),
+
+    // -------------------------------------------------------------------------
+    // STEP 4: Rename the primary key column to the generic label "Value" so
+    // the output schema is consistent regardless of the input field name.
+    // -------------------------------------------------------------------------
+    #"Renamed columns" =
+        Table.RenameColumns(
+            #"Added custom",
+            { { primaryKeyField, "Value" } }
+        ),
+
+    // -------------------------------------------------------------------------
+    // STEP 5: Apply the snake_case formatter to any column names that contain
+    // spaces (delegates to the shared fxSpacesToSnakeCase helper function).
+    // -------------------------------------------------------------------------
+    Custom = fxSpacesToSnakeCase( #"Renamed columns" )
+
+in
+    Custom
