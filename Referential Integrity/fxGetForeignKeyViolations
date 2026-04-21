@@ -1,19 +1,127 @@
-//fxGetForeignKeyViolations
-(sourceTable as table, targetTable as table, sourceTableName as text, targetTableName as text, sourceTableField as text, targetTableField as text) =>
+// fxGetForeignKeyViolations
+// Returns rows from sourceTable whose key value has no match in targetTable (left anti join).
+// Optional info fields from both tables can be appended to the result for context.
+(
+    sourceTable          as table,
+    targetTable          as table,
+    sourceTableName      as text,
+    targetTableName      as text,
+    sourceTableField     as text,
+    targetTableField     as text,
+    optional sourceInfoFields        as list,   // extra columns from source to include in output
+    optional targetInfoFields        as list,   // extra columns from target to include in output
+    optional targetInfoRenamedFields as list    // renamed versions of targetInfoFields in output
+) =>
+
 let
-  /*sourceTable = L1_dbo_product_mapping,
-  targetTable = dbo_products,
-  sourceTableName = "product_mapping",
-  targetTableName = "product",
-  sourceTableField = "canonical_name",
-  targetTableField = "product_name",*/
-  #"Merged queries" = Table.NestedJoin(sourceTable, {sourceTableField}, targetTable, {targetTableField}, targetTableName, JoinKind.LeftAnti),
-  #"Removed other columns" = Table.SelectColumns(#"Merged queries", {sourceTableField}),
-  #"Renamed columns" = Table.RenameColumns(#"Removed other columns", {{sourceTableField, "value"}}),
-  #"Added custom" = Table.AddColumn(#"Renamed columns", "target_field", each targetTableField, type text),
-  #"Added custom 1" = Table.AddColumn(#"Added custom", "source_table", each sourceTableName, type text),
-  #"Added custom 2" = Table.AddColumn(#"Added custom 1", "target_table", each targetTableName, type text),
-  #"Added custom 3" = Table.AddColumn(#"Added custom 2", "source_field", each sourceTableField, type text)
+    // -------------------------------------------------------------------------
+    // TROUBLESHOOTING: To test this function interactively, comment out the
+    // argument block above and uncomment the block below, then invoke the query.
+    // -------------------------------------------------------------------------
+    /*
+    sourceTable              = L1_dbo_sales,
+    targetTable              = L2_dbo_product_mapping,
+    sourceTableName          = "sales",
+    targetTableName          = "product_mapping",
+    sourceTableField         = "product_name",
+    targetTableField         = "source_name",
+    sourceInfoFields         = {"source_row", "source_file"},
+    targetInfoFields         = {"source_file"},
+    targetInfoRenamedFields  = {"target_file"},
+    */
+
+    // -------------------------------------------------------------------------
+    // Flags — used throughout to guard optional logic
+    // -------------------------------------------------------------------------
+    hasTargetInfoFields  = targetInfoRenamedFields <> null,
+    hasSourceInfoFields  = sourceInfoFields <> null,
+
+    // -------------------------------------------------------------------------
+    // Snapshot of target info — grab the first row of the selected/renamed
+    // target columns and store it as a record to stamp onto every violation row
+    // -------------------------------------------------------------------------
+    targetInfoRecord =
+        if hasTargetInfoFields
+        then Table.RenameColumns(
+                 Table.SelectColumns(targetTable, targetInfoFields),
+                 List.Zip({ targetInfoFields ?? {}, targetInfoRenamedFields ?? targetInfoFields ?? {} })
+             ){0}
+        else [],
+
+    // -------------------------------------------------------------------------
+    // Left anti join — keep only source rows with no matching key in target
+    // -------------------------------------------------------------------------
+    Violations = Table.NestedJoin(
+        sourceTable, { sourceTableField },
+        targetTable, { targetTableField },
+        targetTableName,
+        JoinKind.LeftAnti
+    ),
+
+    // -------------------------------------------------------------------------
+    // Keep only the key column plus any requested source info columns
+    // -------------------------------------------------------------------------
+    KeyAndSourceInfo = Table.SelectColumns(
+        Violations,
+        { sourceTableField } & (sourceInfoFields ?? {})
+    ),
+
+    // -------------------------------------------------------------------------
+    // Stamp target info onto every row (if requested)
+    // -------------------------------------------------------------------------
+    WithTargetInfoColumn =
+        if hasTargetInfoFields
+        then Table.AddColumn(KeyAndSourceInfo, "target_info_fields", each targetInfoRecord)
+        else KeyAndSourceInfo,
+
+    TargetInfoExpanded =
+        if hasTargetInfoFields
+        then Table.ExpandRecordColumn(
+                 WithTargetInfoColumn,
+                 "target_info_fields",
+                 targetInfoRenamedFields ?? targetInfoFields ?? {},
+                 targetInfoRenamedFields ?? targetInfoFields ?? {}
+             )
+        else WithTargetInfoColumn,
+
+    TargetInfoTyped =
+        if hasTargetInfoFields
+        then Table.TransformColumnTypes(
+                 TargetInfoExpanded,
+                 List.Transform(targetInfoRenamedFields, each { _, type text })
+             )
+        else TargetInfoExpanded,
+
+    // -------------------------------------------------------------------------
+    // Rename the key column to the generic "value" and attach field/table metadata
+    // -------------------------------------------------------------------------
+    KeyRenamedToValue = Table.RenameColumns(TargetInfoTyped, {{ sourceTableField, "value" }}),
+
+    WithMetadataColumn = Table.AddColumn(
+        KeyRenamedToValue,
+        "infoField",
+        each [
+            source_field = sourceTableField,
+            target_field = targetTableField,
+            source_table = sourceTableName,
+            target_table = targetTableName
+        ]
+    ),
+
+    // -------------------------------------------------------------------------
+    // Expand the metadata record into individual columns and enforce text types
+    // -------------------------------------------------------------------------
+    MetadataExpanded = fxExpandRecordColumn(WithMetadataColumn, "infoField"),
+
+    Result = Table.TransformColumnTypes(
+        MetadataExpanded,
+        {
+            { "source_field", type text },
+            { "target_field", type text },
+            { "source_table", type text },
+            { "target_table", type text }
+        }
+    )
 
 in
-  #"Added custom 3"
+    Result
