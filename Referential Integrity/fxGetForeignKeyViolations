@@ -10,9 +10,10 @@ let
   #"Merged queries" = Table.NestedJoin(sourceTable, {sourceTableField}, targetTable, {targetTableField}, targetTableName, JoinKind.LeftAnti),
   #"Removed other columns" = Table.SelectColumns(#"Merged queries", {sourceTableField}),
   #"Renamed columns" = Table.RenameColumns(#"Removed other columns", {{sourceTableField, "value"}}),
-  #"Added custom" = Table.AddColumn(#"Renamed columns", "field", each targetTableField, type text),
+  #"Added custom" = Table.AddColumn(#"Renamed columns", "target_field", each targetTableField, type text),
   #"Added custom 1" = Table.AddColumn(#"Added custom", "source_table", each sourceTableName, type text),
-  #"Added custom 2" = Table.AddColumn(#"Added custom 1", "target_table", each targetTableName, type text)
+  #"Added custom 2" = Table.AddColumn(#"Added custom 1", "target_table", each targetTableName, type text),
+  #"Added custom 3" = Table.AddColumn(#"Added custom 2", "source_field", each sourceTableField, type text)
 
 in
-  #"Added custom 2"
+  #"Added custom 3"
