@@ -1,0 +1,8 @@
+//fxErrorsToNulls
+(SourceTable as table, optional FieldNames as list) as table =>
+let
+    Fields = if FieldNames = null then Table.ColumnNames(SourceTable) else FieldNames,
+    Pairs = List.Transform(Fields, (f) => {f, null}),
+    Result = Table.ReplaceErrorValues(SourceTable, Pairs)
+in
+    Result
