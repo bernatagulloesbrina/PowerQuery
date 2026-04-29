@@ -1,0 +1,18 @@
+//fxNullsToErrors
+(SourceTable as table, optional FieldNames as list) as table =>
+let
+    Fields = if FieldNames = null then Table.ColumnNames(SourceTable) else FieldNames,
+    Transforms = List.Transform(
+        Fields,
+        (fieldName) =>
+        {
+            fieldName,
+            (value) =>
+                if value = null
+                then error Error.Record("Null Value Error", "This field does not accept null values", [Field = fieldName])
+                else value
+        }
+    ),
+    Result = Table.TransformColumns(SourceTable, Transforms)
+in
+    Result
