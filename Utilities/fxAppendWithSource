@@ -1,0 +1,13 @@
+//fxAppendWithSource
+(myTable1 as table, optional myTable2 as table, optional mySource1 as text, optional mySource2 as text) =>
+let
+    /*myTable1 = "invoices",
+    myTable2 = null,
+    mySource1 = null,
+    mySource2 = null,*/
+
+    Source1adj = Table.AddColumn(myTable1, "Source", each mySource1 ?? "Source1", type text),
+    Source2adj = Table.AddColumn(myTable2, "Source", each mySource2 ?? "Source2", type text),
+    Source = Table.Combine({Source1adj,Source2adj})
+in
+    Source
