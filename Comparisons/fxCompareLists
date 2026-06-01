@@ -1,29 +1,44 @@
 //fxCompareLists
-//2025-12-19 / B.Agullo / added ignoreCasing optinal parameter
+//2026-06-01 / B.Agullo / null-safe casing, deterministic pivot columns, typed output (Gen2-friendly)
+//2025-12-19 / B.Agullo / added ignoreCasing optional parameter
 //2025-11-14 / B.Agullo / compares two lists returning a table
-(myList1 as list, myList2 as list, myList1Name as text, myList2Name as text , optional ignoreCasing as logical)=>
+(myList1 as list, myList2 as list, myList1Name as text, myList2Name as text, optional ignoreCasing as logical) as table =>
 let
-    /*
-    myList1 = #"check data temp 10"{0}[CompareFieldsOld],
-    myList2 = #"check data temp 10"{0}[OldFieldNames],
-    myList1Name = "List1",
-    myList2Name = "List2",
-    ignoreCasing = null,
-    */
-    
-    list1 = if ignoreCasing ?? true then List.Transform(myList1, Text.Lower) else myList1,
-    list2 = if ignoreCasing ?? true then List.Transform(myList2, Text.Lower) else myList2,
-    
-    source1 = List.Transform(list1,each myList1Name ),
-    source2 = List.Transform(list2,each myList2Name),
-    
-    table1 = Table.FromColumns({list1,source1},{"Value","Source"}),
-    table2 = Table.FromColumns({list2,source2},{"Value","Source"}),
-    tableAll = Table.Combine({table1,table2}),
-    
-    #"Removed Duplicates" = Table.Distinct(tableAll),
-    #"Added Custom" = Table.AddColumn(#"Removed Duplicates", "Custom", each 1),
-    #"Pivoted Column" = Table.Pivot(#"Added Custom", List.Distinct(#"Added Custom"[Source]), "Source", "Custom", List.Sum),
-    #"Added Custom1" = Table.AddColumn(#"Pivoted Column", "Custom", each if Record.Field(_,myList1Name) = Record.Field(_,myList2Name ) then "OK" else if Record.Field(_,myList1Name) = null then myList2Name else if  Record.Field(_,myList2Name )  = null then myList1Name else "Error")
+    ignoreCasingValue = ignoreCasing ?? true,
+
+    normalize = (lst as list) as list =>
+        List.Transform(lst, each
+            if _ = null then null
+            else if ignoreCasingValue then Text.Lower(Text.From(_))
+            else Text.From(_)),
+
+    list1 = normalize(myList1),
+    list2 = normalize(myList2),
+
+    table1 = Table.FromColumns(
+        {list1, List.Repeat({myList1Name}, List.Count(list1))},
+        type table [Value = text, Source = text]),
+    table2 = Table.FromColumns(
+        {list2, List.Repeat({myList2Name}, List.Count(list2))},
+        type table [Value = text, Source = text]),
+
+    combined  = Table.Distinct(Table.Combine({table1, table2})),
+    withFlag  = Table.AddColumn(combined, "Flag", each 1, Int64.Type),
+
+    // explicit column list -> deterministic schema for Gen2 staging
+    pivoted   = Table.Pivot(withFlag, {myList1Name, myList2Name}, "Source", "Flag", List.Sum),
+
+    withStatus = Table.AddColumn(pivoted, "Status", each
+        if Record.Field(_, myList1Name) = Record.Field(_, myList2Name) then "OK"
+        else if Record.Field(_, myList1Name) = null then myList2Name
+        else if Record.Field(_, myList2Name) = null then myList1Name
+        else "Error", type text),
+
+    typed = Table.TransformColumnTypes(withStatus, {
+        {"Value",       type text},
+        {myList1Name,   Int64.Type},
+        {myList2Name,   Int64.Type},
+        {"Status",      type text}
+    })
 in
-    #"Added Custom1"
+    typed
