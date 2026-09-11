@@ -1,0 +1,16 @@
+//fxReplaceNameByKey
+(factTable as table, lookupTable as table, factTableSearchField as text, lookupTableSearchField as text, lookupTableReturnField as text) =>
+let
+  /*
+  factTable = L1_dbo_sales,
+  lookupTable = L2_dbo_product_mapping,
+  factTableSearchField = "product_name",
+  lookupTableSearchField = "source_name",
+  lookupTableReturnField = "product_id",
+  */
+  nestedTableFieldName = "joinTableField",
+  #"Merged queries" = Table.NestedJoin(factTable, {factTableSearchField}, lookupTable, {lookupTableSearchField}, nestedTableFieldName, JoinKind.Inner),
+  expandedTable = Table.ExpandTableColumn(#"Merged queries", nestedTableFieldName, {lookupTableReturnField}, {lookupTableReturnField}),
+  #"Removed columns" = Table.RemoveColumns(expandedTable, {factTableSearchField})
+in
+  #"Removed columns"
