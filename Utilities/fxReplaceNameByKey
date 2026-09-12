@@ -10,7 +10,7 @@ let
   leftJoin = false,
   */
   nestedTableFieldName = "joinTableField",
-  #"Merged queries" = Table.NestedJoin(factTable, {factTableSearchField}, lookupTable, {lookupTableSearchField}, nestedTableFieldName, if leftJoin then JoinKind.Left else JoinKind.Inner),
+  #"Merged queries" = Table.NestedJoin(factTable, {factTableSearchField}, lookupTable, {lookupTableSearchField}, nestedTableFieldName, if leftJoin ?? false then JoinKind.Left else JoinKind.Inner),
   expandedTable = Table.ExpandTableColumn(#"Merged queries", nestedTableFieldName, {lookupTableReturnField}, {lookupTableReturnField}),
   #"Removed columns" = Table.RemoveColumns(expandedTable, {factTableSearchField})
 in
