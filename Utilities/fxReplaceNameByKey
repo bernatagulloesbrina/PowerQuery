@@ -1,5 +1,5 @@
 //fxReplaceNameByKey
-(factTable as table, lookupTable as table, factTableSearchField as text, lookupTableSearchField as text, lookupTableReturnField as text) =>
+(factTable as table, lookupTable as table, factTableSearchField as text, lookupTableSearchField as text, lookupTableReturnField as text, optional leftJoin as logical) =>
 let
   /*
   factTable = L1_dbo_sales,
@@ -7,9 +7,10 @@ let
   factTableSearchField = "product_name",
   lookupTableSearchField = "source_name",
   lookupTableReturnField = "product_id",
+  leftJoin = false,
   */
   nestedTableFieldName = "joinTableField",
-  #"Merged queries" = Table.NestedJoin(factTable, {factTableSearchField}, lookupTable, {lookupTableSearchField}, nestedTableFieldName, JoinKind.Inner),
+  #"Merged queries" = Table.NestedJoin(factTable, {factTableSearchField}, lookupTable, {lookupTableSearchField}, nestedTableFieldName, if leftJoin then JoinKind.Left else JoinKind.Inner),
   expandedTable = Table.ExpandTableColumn(#"Merged queries", nestedTableFieldName, {lookupTableReturnField}, {lookupTableReturnField}),
   #"Removed columns" = Table.RemoveColumns(expandedTable, {factTableSearchField})
 in
