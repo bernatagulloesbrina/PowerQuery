@@ -13,7 +13,7 @@ let
   */
   nestedTableFieldName = "joinTableField",
   validatedLookupTable =
-    if List.Contains(Table.ColumnNames(lookupTable), lookupTableSearchField)
+    if List.Contains(Table.ColumnNames(lookupTable), lookupTableReturnField)
     then lookupTable
     else error Error.Record(
       "Column not found",
