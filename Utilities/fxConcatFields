@@ -1,0 +1,20 @@
+//fxConcatFields
+(source as table, fieldNames as list, optional delimiter as nullable text, optional blankString as nullable text) as table =>
+    let
+        d = if delimiter = null then "_" else delimiter,
+        b = if blankString = null then "(null)" else blankString,
+        // Converts a value to text: nulls become blankString, dates become yyyyMMdd
+        toText = (v as any) as text =>
+            if v = null then b
+            else if Value.Is(v, type date) then Date.ToText(v, "yyyyMMdd")
+            else if Value.Is(v, type datetime) then DateTime.ToText(v, "yyyyMMdd")
+            else Text.From(v),
+        // Builds the concatenated text for a single row
+        concatRow = (row as record) as text =>
+            Text.Combine(
+                List.Transform(fieldNames, (f as text) => toText(Record.Field(row, f))),
+                d
+            ),
+        result = Table.AddColumn(source, "Concatenated", concatRow, type text)
+    in
+        result
