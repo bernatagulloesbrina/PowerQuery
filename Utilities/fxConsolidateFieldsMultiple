@@ -1,0 +1,144 @@
+//fxConsolidateFieldsMultiple
+/*
+  Crea una columna con el primer valor no vacío de una lista de columnas y, 
+  opcionalmente, elimina las columnas de origen.
+
+  Parámetros:
+    myTable             tabla de entrada
+    fieldsToCoalesce    columnas en orden de prioridad: "colA" | {"colA", "colB", "colC"}
+    outputField         opcional; nombre de la columna resultante.
+                        Por defecto: la primera columna de fieldsToCoalesce.
+    removeSourceFields  opcional; true/false para todas las columnas de origen, o una lista
+                        de lógicos con la misma longitud que fieldsToCoalesce.
+                        Por defecto: true (se eliminan todas).
+    blankAsNull         opcional; true = los textos vacíos o solo con espacios cuentan como nulos.
+                        Por defecto: false.
+
+  Tipo de la columna resultante: el de las columnas de origen si todas comparten tipo; si no, any.
+
+  Ejemplos:
+    // Equivalente a fxConsolidateFields(t, "variant_key", "mapped_variant_key", "variant_key", true, true)
+    fxConsolidateFieldsMultiple(t, {"variant_key", "mapped_variant_key"})
+
+    // Tres niveles de prioridad, conservando la segunda columna y tratando "" como nulo
+    fxConsolidateFieldsMultiple(t, {"Email trabajo", "Email personal", "Email alternativo"},
+        "Email", {true, false, true}, true)
+*/
+(
+    myTable as table,
+    fieldsToCoalesce as any,
+    optional outputField as nullable text,
+    optional removeSourceFields as any,
+    optional blankAsNull as nullable logical
+) as table =>
+let
+    fnName = "fxConsolidateFieldsMultiple",
+
+    // ---------- Helpers ----------
+    ToList = (value as any, paramName as text) as list =>
+        if value is text then
+            {value}
+        else if value is list
+            and not List.IsEmpty(value)
+            and List.AllTrue(List.Transform(value, each _ is text))
+        then
+            value
+        else
+            error Error.Record(
+                "Invalid parameter",
+                fnName & ": '" & paramName & "' debe ser texto o una lista no vacía de textos.",
+                value
+            ),
+
+    AssertTrue = (condition as logical, reason as text, message as text, detail as any) as logical =>
+        if condition then true
+        else error Error.Record(reason, fnName & ": " & message, detail),
+
+    UniqueName = (base as text, taken as list) as text =>
+        if List.Contains(taken, base) then base & "_" & Text.Remove(Text.NewGuid(), "-") else base,
+
+    // ---------- Normalización de parámetros ----------
+    fields       = ToList(fieldsToCoalesce, "fieldsToCoalesce"),
+    outputName   = outputField ?? fields{0},
+    treatBlank   = blankAsNull ?? false,
+    tableColumns = Table.ColumnNames(myTable),
+
+    removeFlags =
+        if removeSourceFields = null then
+            List.Repeat({true}, List.Count(fields))
+        else if removeSourceFields is logical then
+            List.Repeat({removeSourceFields}, List.Count(fields))
+        else if removeSourceFields is list
+            and List.AllTrue(List.Transform(removeSourceFields, each _ is logical))
+        then
+            removeSourceFields
+        else
+            error Error.Record(
+                "Invalid parameter",
+                fnName & ": 'removeSourceFields' debe ser un lógico o una lista de lógicos.",
+                removeSourceFields
+            ),
+
+    missingFields    = List.Difference(fields, tableColumns),
+    fieldsToRemove   = List.Transform(List.Select(List.Zip({fields, removeFlags}), each _{1}), each _{0}),
+    remainingColumns = List.Difference(tableColumns, fieldsToRemove),
+
+    // ---------- Validaciones ----------
+    validations = {
+        AssertTrue(
+            List.IsEmpty(missingFields),
+            "Column not found",
+            "no existen en la tabla las columnas: " & Text.Combine(missingFields, ", "),
+            [Missing = missingFields, Available = tableColumns]
+        ),
+        AssertTrue(
+            List.Count(List.Distinct(fields)) = List.Count(fields),
+            "Duplicated column",
+            "fieldsToCoalesce no puede contener columnas repetidas.",
+            fields
+        ),
+        AssertTrue(
+            List.Count(removeFlags) = List.Count(fields),
+            "Parameter length mismatch",
+            "removeSourceFields debe tener la misma longitud que fieldsToCoalesce.",
+            [Fields = fields, RemoveFlags = removeFlags]
+        ),
+        AssertTrue(
+            not List.Contains(remainingColumns, outputName),
+            "Column name collision",
+            "la columna '" & outputName & "' ya existe en la tabla y no se va a eliminar. "
+                & "Indica otro outputField o elimina esa columna de origen.",
+            [OutputField = outputName, Remaining = remainingColumns]
+        )
+    },
+
+    // ---------- Tipo de salida ----------
+    tableType   = Value.Type(myTable),
+    sourceTypes = List.Transform(fields, (f) => Type.TableColumn(tableType, f)),
+    firstType   = sourceTypes{0},
+    outputType  =
+        if List.AllTrue(List.Transform(sourceTypes, (t) => Type.Is(t, firstType) and Type.Is(firstType, t)))
+        then firstType
+        else type any,
+
+    // ---------- Coalesce ----------
+    IsEmpty = (v as any) as logical =>
+        v = null or (treatBlank and v is text and Text.Trim(v) = ""),
+
+    tempName = UniqueName("__coalesced", tableColumns),
+
+    added = Table.AddColumn(
+        myTable,
+        tempName,
+        (row) => List.First(
+            List.Select(List.Transform(fields, (f) => Record.Field(row, f)), (v) => not IsEmpty(v)),
+            null
+        ),
+        outputType
+    ),
+    removed = Table.RemoveColumns(added, fieldsToRemove),
+    renamed = Table.RenameColumns(removed, {{tempName, outputName}}),
+
+    result = if List.AllTrue(validations) then renamed else error "unreachable"
+in
+    result
