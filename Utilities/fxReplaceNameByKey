@@ -1,179 +1,27 @@
 //fxReplaceNameByKey
-/*
-  Sustituye (o complementa) una o varias columnas clave de factTable con uno o varios campos
-  de lookupTable, devueltos por separado o concatenados en una sola columna.
-
-  Parámetros (los *Fields aceptan texto o lista de textos):
-    factTable               tabla de hechos
-    lookupTable             tabla de mapeo
-    factTableSearchFields   "Dealer Number"  |  {"Dealer Number", "Country"}
-    lookupTableSearchFields "source_dealer_code" | {"source_dealer_code", "source_country"}
-    lookupTableReturnFields "dealer_key"     |  {"dealer_key", "region_key"}
-    leftJoin                opcional; true = LeftOuter, false/null = Inner (por defecto)
-    newColumnNames          opcional; nombres de salida.
-                              - Sin concatenar: misma cantidad y orden que lookupTableReturnFields.
-                              - Concatenando: un único nombre (texto o lista de 1 elemento).
-                                Por defecto: los nombres de retorno unidos con "_".
-    concatDelimiter         opcional; si se informa, los campos de retorno se concatenan
-                            en una sola columna de texto con este separador.
-                            Los nulos se omiten; si todos son nulos, el resultado es null.
-    keepSearchFields        opcional; true = conserva las columnas clave de factTable
-                            (útil cuando se reutilizan en joins posteriores).
-                            false/null = las elimina (por defecto).
-
-  Ejemplos:
-    // Clave compuesta, left join
-    fxReplaceNameByKey(add_model_code, dim_variant,
-        {"source_model_code", "Model Year of Vehicl"}, {"model_code", "model_year"},
-        "variant_key", true)
-
-    // Renombrando la salida y conservando la clave
-    fxReplaceNameByKey(tabla, VariantMapping,
-        "source_model_code", "source_model_code", "model_code",
-        true, "mapped_model_code", null, true)
-
-    // Campos concatenados -> columna "DealerRegion" con valores tipo "D001 - EU"
-    fxReplaceNameByKey(#"Warranty Reimbursements", mapping_dealer,
-        "Dealer Number", "source_dealer_code",
-        {"dealer_key", "region_key"}, false, "DealerRegion", " - ")
-*/
-(
-    factTable as table,
-    lookupTable as table,
-    factTableSearchFields as any,
-    lookupTableSearchFields as any,
-    lookupTableReturnFields as any,
-    optional leftJoin as nullable logical,
-    optional newColumnNames as any,
-    optional concatDelimiter as nullable text,
-    optional keepSearchFields as nullable logical
-) as table =>
+(factTable as table, lookupTable as table, factTableSearchField as text, lookupTableSearchField as text, lookupTableReturnField as text, optional leftJoin as logical) =>
 let
-    fnName = "fxReplaceNameByKey",
-
-    // ---------- Helpers ----------
-    ToList = (value as any, paramName as text) as list =>
-        if value is text then
-            {value}
-        else if value is list
-            and not List.IsEmpty(value)
-            and List.AllTrue(List.Transform(value, each _ is text))
-        then
-            value
-        else
-            error Error.Record(
-                "Invalid parameter",
-                fnName & ": '" & paramName & "' debe ser texto o una lista no vacía de textos.",
-                value
-            ),
-
-    AssertColumns = (required as list, available as list, tableLabel as text) as logical =>
-        let
-            missing = List.Difference(required, available)
-        in
-            if List.IsEmpty(missing) then true
-            else error Error.Record(
-                "Column not found",
-                fnName & ": no existen en " & tableLabel & " las columnas: " & Text.Combine(missing, ", "),
-                [Missing = missing, Available = available]
-            ),
-
-    AssertTrue = (condition as logical, reason as text, message as text, detail as any) as logical =>
-        if condition then true
-        else error Error.Record(reason, fnName & ": " & message, detail),
-
-    // ---------- Normalización de parámetros ----------
-    concatenate = concatDelimiter <> null,
-    keepKeys    = keepSearchFields ?? false,
-
-    factKeys   = ToList(factTableSearchFields,   "factTableSearchFields"),
-    lookupKeys = ToList(lookupTableSearchFields, "lookupTableSearchFields"),
-    returnCols = ToList(lookupTableReturnFields, "lookupTableReturnFields"),
-
-    outputNames =
-        if newColumnNames <> null then ToList(newColumnNames, "newColumnNames")
-        else if concatenate then {Text.Combine(returnCols, "_")}
-        else returnCols,
-
-    factColumns       = Table.ColumnNames(factTable),
-    lookupColumns     = Table.ColumnNames(lookupTable),
-    remainingFactCols = if keepKeys then factColumns else List.Difference(factColumns, factKeys),
-    collisions        = List.Intersect({remainingFactCols, outputNames}),
-
-    expectedOutputCount = if concatenate then 1 else List.Count(returnCols),
-
-    // ---------- Validaciones ----------
-    validations = {
-        AssertColumns(factKeys, factColumns, "factTable"),
-        AssertColumns(List.Distinct(lookupKeys & returnCols), lookupColumns, "lookupTable"),
-        AssertTrue(
-            List.Count(factKeys) = List.Count(lookupKeys),
-            "Key count mismatch",
-            "factTableSearchFields y lookupTableSearchFields deben tener el mismo número de columnas.",
-            [Fact = factKeys, Lookup = lookupKeys]
-        ),
-        AssertTrue(
-            List.Count(outputNames) = expectedOutputCount,
-            "Output name count mismatch",
-            if concatenate
-                then "al concatenar, newColumnNames debe contener un único nombre."
-                else "newColumnNames debe tener el mismo número de elementos que lookupTableReturnFields.",
-            [ReturnFields = returnCols, NewNames = outputNames]
-        ),
-        AssertTrue(
-            List.Count(List.Distinct(returnCols)) = List.Count(returnCols)
-                and List.Count(List.Distinct(outputNames)) = List.Count(outputNames),
-            "Duplicated column",
-            "lookupTableReturnFields / newColumnNames no pueden contener duplicados.",
-            [ReturnFields = returnCols, NewNames = outputNames]
-        ),
-        AssertTrue(
-            List.IsEmpty(collisions),
-            "Column name collision",
-            "factTable ya contiene columnas con estos nombres: " & Text.Combine(collisions, ", ")
-                & ". Usa newColumnNames para renombrar la salida.",
-            collisions
-        )
-    },
-
-    // ---------- Preparación del lookup ----------
-    UniqueName = (base as text, taken as list) as text =>
-        if List.Contains(taken, base) then base & "_" & Text.Remove(Text.NewGuid(), "-") else base,
-
-    nestedCol   = UniqueName("__joinTableField", factColumns & outputNames),
-    combinedCol = UniqueName("__combinedField", lookupColumns),
-
-    lookupSlim = Table.SelectColumns(lookupTable, List.Distinct(lookupKeys & returnCols)),
-
-    // La concatenación se hace en el lookup (tabla pequeña), no en la tabla de hechos
-    lookupPrepared =
-        if concatenate then
-            let
-                withCombined = Table.AddColumn(
-                    lookupSlim,
-                    combinedCol,
-                    (row) =>
-                        let
-                            values   = Record.FieldValues(Record.SelectFields(row, returnCols)),
-                            nonNulls = List.RemoveNulls(List.Transform(values, each if _ = null then null else Text.From(_)))
-                        in
-                            if List.IsEmpty(nonNulls) then null else Text.Combine(nonNulls, concatDelimiter),
-                    type nullable text
-                )
-            in
-                Table.SelectColumns(withCombined, List.Distinct(lookupKeys & {combinedCol}))
-        else
-            lookupSlim,
-
-    columnsToExpand = if concatenate then {combinedCol} else returnCols,
-
-    // ---------- Join ----------
-    joinKind = if leftJoin ?? false then JoinKind.LeftOuter else JoinKind.Inner,
-
-    merged      = Table.NestedJoin(factTable, factKeys, lookupPrepared, lookupKeys, nestedCol, joinKind),
-    withoutKeys = if keepKeys then merged else Table.RemoveColumns(merged, factKeys),
-    expanded    = Table.ExpandTableColumn(withoutKeys, nestedCol, columnsToExpand, outputNames),
-
-    result = if List.AllTrue(validations) then expanded else error "unreachable"
+  
+  
+  /*
+  factTable = #"Warranty Reimbursements",
+  lookupTable = mapping_dealer_by_dealer_code,
+  factTableSearchField =  "Dealer Number",
+  lookupTableSearchField = "source_dealer_code",
+  lookupTableReturnField = "dealer_key",
+  leftJoin = false,
+  */
+  nestedTableFieldName = "joinTableField",
+  validatedLookupTable =
+    if List.Contains(Table.ColumnNames(lookupTable), lookupTableReturnField)
+    then lookupTable
+    else error Error.Record(
+      "Column not found",
+      "fxReplaceNameByKey: the column '" & lookupTableSearchField & "' does not exist in lookupTable.",
+      Table.ColumnNames(lookupTable)
+    ),
+  #"Merged queries" = Table.NestedJoin(factTable, {factTableSearchField}, validatedLookupTable, {lookupTableSearchField}, nestedTableFieldName, if leftJoin ?? false then JoinKind.LeftOuter else JoinKind.Inner),
+  expandedTable = Table.ExpandTableColumn(#"Merged queries", nestedTableFieldName, {lookupTableReturnField}, {lookupTableReturnField}),
+  #"Removed columns" = Table.RemoveColumns(expandedTable, {factTableSearchField})
 in
-    result
+  #"Removed columns"
